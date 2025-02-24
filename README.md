@@ -1,4 +1,6 @@
 **INSTALL PACKAGES / DEPENDENCIES** 
+Use either pip/ conda or mamba for installations.
+
 - Pandas
 - numpy
 - scipy
