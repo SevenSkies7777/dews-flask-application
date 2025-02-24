@@ -1,4 +1,4 @@
-Required dependencies for the environment 
+**INSTALL PACKAGES / DEPENDENCIES** 
 - Pandas
 - numpy
 - scipy
@@ -11,3 +11,5 @@ Required dependencies for the environment
 - seaborn
 - statsmodels        (incase this developes conflices with other dependencies, install use conda/ mamba "mamba install statsmodels --no-update-deps". if conflicts persist between numpy and statsmodels the use "pip install --upgrade numpy statsmodels")
 - mamba install --dry-run tqdm
+
+- 
