@@ -1,5 +1,6 @@
 from flask import Flask, jsonify
-from query import fetch_milk_production
+
+from OutliersDetectionService import fetch_outliers
 
 app = Flask(__name__)
 
@@ -9,7 +10,7 @@ def home():
 
 @app.route("/milk_production", methods=["GET"])
 def get_milk_production():
-    data = fetch_milk_production()
+    data = fetch_outliers()
     return jsonify(data)  # Convert result to JSON response
 
 if __name__ == "__main__":
