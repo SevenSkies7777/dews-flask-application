@@ -14,4 +14,4 @@ def fetch_responses_outliers():
     return jsonify(data)  # Convert result to JSON response
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=False, host="0.0.0.0", port=6060)
