@@ -37,5 +37,17 @@ def process_rainfall_data():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+@app.route("/service-api/v1/outliers/process/outliers-by-county", methods=["GET"])
+def process_outliers_by_county():
+    try:
+
+
+        # Return a valid JSON response
+        return jsonify({"message": "Rainfall data processing completed successfully"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == "__main__":
     app.run(debug=False, host="0.0.0.0", port=6060)

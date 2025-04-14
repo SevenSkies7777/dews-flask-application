@@ -4,26 +4,28 @@ from datetime import date
 from sqlalchemy import create_engine, text
 from Outliers_HHA import HHA_Outliers
 
+
 # Function to convert NumPy types to Python native types
 def convert_numpy_types(df):
-    # Create a copy to avoid modifying the original
-    result = df.copy()
-    
-    # Convert all columns with numpy dtypes to Python native types
-    for col in result.columns:
-        if pd.api.types.is_integer_dtype(result[col]):
-            result[col] = result[col].astype(int)
-        elif pd.api.types.is_float_dtype(result[col]):
-            result[col] = result[col].astype(float)
-    
-    return result
+  # Create a copy to avoid modifying the original
+  result = df.copy()
+
+  # Convert all columns with numpy dtypes to Python native types
+  for col in result.columns:
+    if pd.api.types.is_integer_dtype(result[col]):
+      result[col] = result[col].astype(int)
+    elif pd.api.types.is_float_dtype(result[col]):
+      result[col] = result[col].astype(float)
+
+  return result
+
 
 # Create SQLAlchemy engine
 engine = create_engine(
     'mysql+mysqlconnector://root:Romans17:48@127.0.0.1/livelihoodzones_1'
 )
 hha_outliers = HHA_Outliers()
-#Milk_Prod_Cons_Sold
+# Milk_Prod_Cons_Sold
 query = """
     SELECT hh_livestock_milk_production_per_species.HhaQuestionnaireSessionId, 
            hha_questionnaire_sessions.CountyId, hha_questionnaire_sessions.LivelihoodZoneId, hha_questionnaire_sessions.WardId,
@@ -42,14 +44,13 @@ df_milk = pd.read_sql(query, engine)
 
 # Check if dataframe is empty before proceeding
 if df_milk.empty:
-    print("Warning: No data returned from query")
-    exit()
+  print("Warning: No data returned from query")
+  exit()
 
-#milk_outliers = Milk_Prod_Outliers()
+# milk_outliers = Milk_Prod_Outliers()
 
 # Call the method with your dataframe
 results = hha_outliers.detect_outliers_multicolumn(df=df_milk)
-
 
 dataset_info = results['dataset_info']
 column_stats = results['column_stats']
@@ -60,59 +61,63 @@ print(f"Found {len(outliers_df)} outliers")
 
 # Check if we have any outliers before proceeding
 if outliers_df.empty:
-    print("No outliers found. Exiting.")
-    exit()
+  print("No outliers found. Exiting.")
+  exit()
 
-outliers_df2 = outliers_df[['DataCollectionExerciseId', 'CountyId', 'ExerciseStartDate']]
-outliers_df2['DataCollectionExerciseId'] = outliers_df2['DataCollectionExerciseId'].astype(int)
+outliers_df2 = outliers_df[
+  ['DataCollectionExerciseId', 'CountyId', 'ExerciseStartDate']]
+outliers_df2['DataCollectionExerciseId'] = outliers_df2[
+  'DataCollectionExerciseId'].astype(int)
 outliers_df3 = outliers_df2.drop_duplicates()
-outliers_df3['OutlierRunName'] = outliers_df3['CountyId'].astype(str) + '' + outliers_df3['ExerciseStartDate'].astype(str)
+outliers_df3['OutlierRunName'] = outliers_df3['CountyId'].astype(str) + '' + \
+                                 outliers_df3['ExerciseStartDate'].astype(str)
 outliers_df3['QuestionnaireType'] = "HHA"
-outliers_df4 = outliers_df3[['OutlierRunName', 'DataCollectionExerciseId', 'QuestionnaireType']]
+outliers_df4 = outliers_df3[
+  ['OutlierRunName', 'DataCollectionExerciseId', 'QuestionnaireType']]
 
 # Delete any previous outlier test instances
 outlier_run_names = outliers_df3['OutlierRunName'].tolist()
 data_collection_exercise_ids = outliers_df3['DataCollectionExerciseId'].tolist()
 
-
 for i in range(len(outlier_run_names)):
-    del_query = text("""
+  del_query = text("""
         DELETE FROM outlier_runs 
         WHERE OutlierRunName = :run_name AND DataCollectionExerciseId = :exercise_id
     """)
-    
-    try:
-        with engine.begin() as conn:
-            result = conn.execute(
-                del_query, 
-                {"run_name": outlier_run_names[i], "exercise_id": int(data_collection_exercise_ids[i])}
-            )
-            print(f"Deleted {result.rowcount} previous outlier runs successfully")
-    except Exception as e:
-        print(f"Error occurred during deletion: {e}")
 
-    # Insert new outlier test instances
+  try:
+    with engine.begin() as conn:
+      result = conn.execute(
+          del_query,
+          {"run_name": outlier_run_names[i],
+           "exercise_id": int(data_collection_exercise_ids[i])}
+      )
+      print(f"Deleted {result.rowcount} previous outlier runs successfully")
+  except Exception as e:
+    print(f"Error occurred during deletion: {e}")
+
+  # Insert new outlier test instances
 for _, row in outliers_df4.iterrows():
-    insert_query = text("""
+  insert_query = text("""
         INSERT INTO outlier_runs (
             OutlierRunName, DataCollectionExerciseId, QuestionnaireType
         ) 
         VALUES (:run_name, :exercise_id, :questionnaire_type)
     """)
-    
-    try:
-        with engine.begin() as conn:
-            conn.execute(
-                insert_query, 
-                {
-                    "run_name": row['OutlierRunName'],
-                    "exercise_id": int(row['DataCollectionExerciseId']),
-                    "questionnaire_type": row['QuestionnaireType']
-                }
-            )
-        print(f"Inserted outlier run record successfully")
-    except Exception as e:
-        print(f"Error occurred during outlier run insertion: {e}")
+
+  try:
+    with engine.begin() as conn:
+      conn.execute(
+          insert_query,
+          {
+            "run_name": row['OutlierRunName'],
+            "exercise_id": int(row['DataCollectionExerciseId']),
+            "questionnaire_type": row['QuestionnaireType']
+          }
+      )
+    print(f"Inserted outlier run record successfully")
+  except Exception as e:
+    print(f"Error occurred during outlier run insertion: {e}")
 
 # Get the OutlierRunId for the newly created run
 outlier_run_name = outliers_df3['OutlierRunName'].iloc[0]
@@ -126,15 +131,16 @@ query = text("""
 """)
 
 with engine.connect() as conn:
-    result = conn.execute(
-        query, 
-        {"run_name": outlier_run_name, "exercise_id": int(data_collection_exercise_id)}
-    )
-    OutlierRunId = result.scalar()
+  result = conn.execute(
+      query,
+      {"run_name": outlier_run_name,
+       "exercise_id": int(data_collection_exercise_id)}
+  )
+  OutlierRunId = result.scalar()
 
 if OutlierRunId is None:
-    print("Error: Could not retrieve OutlierRunId. Exiting.")
-    exit()
+  print("Error: Could not retrieve OutlierRunId. Exiting.")
+  exit()
 
 print(f"Using OutlierRunId: {OutlierRunId}")
 
@@ -144,38 +150,39 @@ outliers_df5['OutlierRunId'] = OutlierRunId
 outliers_df5 = convert_numpy_types(outliers_df5)
 
 # Select and rename columns for the final insert
-outliers_df6 = outliers_df5[['OutlierRunId', 'WardId', 'HouseHoldId', 'analyzed_column', 
-                            'IndicatorType', 'outlier_type', 'OutlierValue', 'test_statistic_value', 
-                            'test_type', 'level', 'reference_mean', 'reference_std', 
-                            'population_mean', 'population_std']]
+outliers_df6 = outliers_df5[
+  ['OutlierRunId', 'WardId', 'HouseHoldId', 'analyzed_column',
+   'IndicatorType', 'outlier_type', 'OutlierValue', 'test_statistic_value',
+   'test_type', 'level', 'reference_mean', 'reference_std',
+   'population_mean', 'population_std']]
 
 outliers_df6.rename(columns={
-    'analyzed_column': 'Indicator',
-    'outlier_type': 'OutlierType',
-    'test_statistic_value': 'TestStatisticValue',
-    'test_type': 'TestType',
-    'level': 'Level',
-    'reference_mean': 'ReferenceMean',
-    'reference_std': 'ReferenceStd',
-    'population_mean': 'PopulationMean',
-    'population_std': 'PopulationStd'
+  'analyzed_column': 'Indicator',
+  'outlier_type': 'OutlierType',
+  'test_statistic_value': 'TestStatisticValue',
+  'test_type': 'TestType',
+  'level': 'Level',
+  'reference_mean': 'ReferenceMean',
+  'reference_std': 'ReferenceStd',
+  'population_mean': 'PopulationMean',
+  'population_std': 'PopulationStd'
 }, inplace=True)
 
 # Insert outlier details
 for _, row in outliers_df6.iterrows():
-    params = {}
-    for col in outliers_df6.columns:
-        value = row[col]
-        if isinstance(value, float) and np.isnan(value):
-            params[col.lower()] = None
-        elif hasattr(value, 'dtype') and np.issubdtype(value.dtype, np.integer):
-            params[col.lower()] = int(value)
-        elif hasattr(value, 'dtype') and np.issubdtype(value.dtype, np.floating):
-            params[col.lower()] = float(value)
-        else:
-            params[col.lower()] = value
-    
-    insert_query = text("""
+  params = {}
+  for col in outliers_df6.columns:
+    value = row[col]
+    if isinstance(value, float) and np.isnan(value):
+      params[col.lower()] = None
+    elif hasattr(value, 'dtype') and np.issubdtype(value.dtype, np.integer):
+      params[col.lower()] = int(value)
+    elif hasattr(value, 'dtype') and np.issubdtype(value.dtype, np.floating):
+      params[col.lower()] = float(value)
+    else:
+      params[col.lower()] = value
+
+  insert_query = text("""
         INSERT INTO outliers (
             OutlierRunId, WardId, HouseHoldId, Indicator, IndicatorType, 
             OutlierType, OutlierValue, TestStatisticValue, TestType, Level, 
@@ -187,21 +194,20 @@ for _, row in outliers_df6.iterrows():
             :referencemean, :referencestd, :populationmean, :populationstd
         )
     """)
-    
-    try:
-        with engine.begin() as conn:
-            conn.execute(insert_query, params)
-        
-        # Print progress after every 100 rows
-        if _ % 100 == 0:
-            print(f"Inserted {_} outlier records...")
-    except Exception as e:
-        print(f"Error inserting record {_}: {e}")
+
+  try:
+    with engine.begin() as conn:
+      conn.execute(insert_query, params)
+
+    # Print progress after every 100 rows
+    if _ % 100 == 0:
+      print(f"Inserted {_} outlier records...")
+  except Exception as e:
+    print(f"Error inserting record {_}: {e}")
 
 print(f"Inserted {len(outliers_df6)} outlier records successfully")
 
-
-#Copying_Strategies
+# Copying_Strategies
 query = """
     SELECT hh_livestock_milk_production_per_species.HhaQuestionnaireSessionId, 
            hha_questionnaire_sessions.CountyId, hha_questionnaire_sessions.LivelihoodZoneId, hha_questionnaire_sessions.WardId,
@@ -220,114 +226,120 @@ coping_df = pd.read_sql(query, engine)
 
 # Check if dataframe is empty before proceeding
 if coping_df.empty:
-    print("Warning: No data returned from query")
+  print("Warning: No data returned from query")
+  exit()
+
+  # copying_outliers = Copying_Strategies_Outliers()
+
+  # Call the method with your dataframe
+  results = hha_outliers.detect_outliers_Copying_Strategies(df=coping_df)
+
+  dataset_info = results['dataset_info']
+  column_stats = results['column_stats']
+  outliers_df = results['outliers']
+
+  print("Dataset info:", dataset_info)
+  print(f"Found {len(outliers_df)} outliers")
+
+  # Check if we have any outliers before proceeding
+  if outliers_df.empty:
+    print("No outliers found. Exiting.")
     exit()
 
-    #copying_outliers = Copying_Strategies_Outliers()
+  outliers_df2 = outliers_df[
+    ['DataCollectionExerciseId', 'CountyId', 'ExerciseStartDate']]
+  outliers_df2['DataCollectionExerciseId'] = outliers_df2[
+    'DataCollectionExerciseId'].astype(int)
+  outliers_df3 = outliers_df2.drop_duplicates()
+  outliers_df3['OutlierRunName'] = outliers_df3['CountyId'].astype(str) + '' + \
+                                   outliers_df3['ExerciseStartDate'].astype(str)
+  outliers_df3['QuestionnaireType'] = "HHA"
+  outliers_df4 = outliers_df3[
+    ['OutlierRunName', 'DataCollectionExerciseId', 'QuestionnaireType']]
 
-    # Call the method with your dataframe
-    results = hha_outliers.detect_outliers_Copying_Strategies(df=coping_df)
+  # Delete any previous outlier test instances
+  outlier_run_names = outliers_df3['OutlierRunName'].tolist()
+  data_collection_exercise_ids = outliers_df3[
+    'DataCollectionExerciseId'].tolist()
 
-
-    dataset_info = results['dataset_info']
-    column_stats = results['column_stats']
-    outliers_df = results['outliers']
-
-    print("Dataset info:", dataset_info)
-    print(f"Found {len(outliers_df)} outliers")
-
-# Check if we have any outliers before proceeding
-    if outliers_df.empty:
-        print("No outliers found. Exiting.")
-        exit()
-
-    outliers_df2 = outliers_df[['DataCollectionExerciseId', 'CountyId', 'ExerciseStartDate']]
-    outliers_df2['DataCollectionExerciseId'] = outliers_df2['DataCollectionExerciseId'].astype(int)
-    outliers_df3 = outliers_df2.drop_duplicates()
-    outliers_df3['OutlierRunName'] = outliers_df3['CountyId'].astype(str) + '' + outliers_df3['ExerciseStartDate'].astype(str)
-    outliers_df3['QuestionnaireType'] = "HHA"
-    outliers_df4 = outliers_df3[['OutlierRunName', 'DataCollectionExerciseId', 'QuestionnaireType']]
-
-# Delete any previous outlier test instances
-    outlier_run_names = outliers_df3['OutlierRunName'].tolist()
-    data_collection_exercise_ids = outliers_df3['DataCollectionExerciseId'].tolist()
-
-
-    for i in range(len(outlier_run_names)):
-        del_query = text("""
+  for i in range(len(outlier_run_names)):
+    del_query = text("""
         DELETE FROM outlier_runs 
         WHERE OutlierRunName = :run_name AND DataCollectionExerciseId = :exercise_id
     """)
-    
-    try:
-        with engine.begin() as conn:
-            result = conn.execute(
-                del_query, 
-                {"run_name": outlier_run_names[i], "exercise_id": int(data_collection_exercise_ids[i])}
-            )
-            print(f"Deleted {result.rowcount} previous outlier runs successfully")
-    except Exception as e:
-        print(f"Error occurred during deletion: {e}")
 
-    # Insert new outlier test instances
-    for _, row in outliers_df4.iterrows():
-        insert_query = text("""
+  try:
+    with engine.begin() as conn:
+      result = conn.execute(
+          del_query,
+          {"run_name": outlier_run_names[i],
+           "exercise_id": int(data_collection_exercise_ids[i])}
+      )
+      print(f"Deleted {result.rowcount} previous outlier runs successfully")
+  except Exception as e:
+    print(f"Error occurred during deletion: {e}")
+
+  # Insert new outlier test instances
+  for _, row in outliers_df4.iterrows():
+    insert_query = text("""
         INSERT INTO outlier_runs (
             OutlierRunName, DataCollectionExerciseId, QuestionnaireType
         ) 
         VALUES (:run_name, :exercise_id, :questionnaire_type)
     """)
-    
-    try:
-        with engine.begin() as conn:
-            conn.execute(
-                insert_query, 
-                {
-                    "run_name": row['OutlierRunName'],
-                    "exercise_id": int(row['DataCollectionExerciseId']),
-                    "questionnaire_type": row['QuestionnaireType']
-                }
-            )
-        print(f"Inserted outlier run record successfully")
-    except Exception as e:
-        print(f"Error occurred during outlier run insertion: {e}")
 
-# Get the OutlierRunId for the newly created run
-    outlier_run_name = outliers_df3['OutlierRunName'].iloc[0]
-    data_collection_exercise_id = outliers_df3['DataCollectionExerciseId'].iloc[0]
+  try:
+    with engine.begin() as conn:
+      conn.execute(
+          insert_query,
+          {
+            "run_name": row['OutlierRunName'],
+            "exercise_id": int(row['DataCollectionExerciseId']),
+            "questionnaire_type": row['QuestionnaireType']
+          }
+      )
+    print(f"Inserted outlier run record successfully")
+  except Exception as e:
+    print(f"Error occurred during outlier run insertion: {e}")
 
-    query = text("""
+  # Get the OutlierRunId for the newly created run
+  outlier_run_name = outliers_df3['OutlierRunName'].iloc[0]
+  data_collection_exercise_id = outliers_df3['DataCollectionExerciseId'].iloc[0]
+
+  query = text("""
     SELECT outlier_runs.OutlierRunId
     FROM outlier_runs
     WHERE OutlierRunName = :run_name 
     AND DataCollectionExerciseId = :exercise_id
 """)
 
-    with engine.connect() as conn:
-        result = conn.execute(
-            query, 
-            {"run_name": outlier_run_name, "exercise_id": int(data_collection_exercise_id)}
-        )
-        OutlierRunId = result.scalar()
+  with engine.connect() as conn:
+    result = conn.execute(
+        query,
+        {"run_name": outlier_run_name,
+         "exercise_id": int(data_collection_exercise_id)}
+    )
+    OutlierRunId = result.scalar()
 
-    if OutlierRunId is None:
-        print("Error: Could not retrieve OutlierRunId. Exiting.")
-        exit()
+  if OutlierRunId is None:
+    print("Error: Could not retrieve OutlierRunId. Exiting.")
+    exit()
 
-    print(f"Using OutlierRunId: {OutlierRunId}")
+  print(f"Using OutlierRunId: {OutlierRunId}")
 
-    # Add OutlierRunId to the outliers dataframe and convert numpy types
-    outliers_df5 = outliers_df.copy()
-    outliers_df5['OutlierRunId'] = OutlierRunId
-    outliers_df5 = convert_numpy_types(outliers_df5)
+  # Add OutlierRunId to the outliers dataframe and convert numpy types
+  outliers_df5 = outliers_df.copy()
+  outliers_df5['OutlierRunId'] = OutlierRunId
+  outliers_df5 = convert_numpy_types(outliers_df5)
 
-# Select and rename columns for the final insert
-    outliers_df6 = outliers_df5[['OutlierRunId', 'WardId', 'HouseHoldId', 'analyzed_column', 
-                            'IndicatorType', 'outlier_type', 'OutlierValue', 'test_statistic_value', 
-                            'test_type', 'level', 'reference_mean', 'reference_std', 
-                            'population_mean', 'population_std']]
+  # Select and rename columns for the final insert
+  outliers_df6 = outliers_df5[
+    ['OutlierRunId', 'WardId', 'HouseHoldId', 'analyzed_column',
+     'IndicatorType', 'outlier_type', 'OutlierValue', 'test_statistic_value',
+     'test_type', 'level', 'reference_mean', 'reference_std',
+     'population_mean', 'population_std']]
 
-    outliers_df6.rename(columns={
+  outliers_df6.rename(columns={
     'analyzed_column': 'Indicator',
     'outlier_type': 'OutlierType',
     'test_statistic_value': 'TestStatisticValue',
@@ -337,23 +349,23 @@ if coping_df.empty:
     'reference_std': 'ReferenceStd',
     'population_mean': 'PopulationMean',
     'population_std': 'PopulationStd'
-    }, inplace=True)
+  }, inplace=True)
 
-# Insert outlier details
-    for _, row in outliers_df6.iterrows():
-        params = {}
-        for col in outliers_df6.columns:
-            value = row[col]
-            if isinstance(value, float) and np.isnan(value):
-                params[col.lower()] = None
-            elif hasattr(value, 'dtype') and np.issubdtype(value.dtype, np.integer):
-                params[col.lower()] = int(value)
-            elif hasattr(value, 'dtype') and np.issubdtype(value.dtype, np.floating):
-                params[col.lower()] = float(value)
-            else:
-                params[col.lower()] = value
-    
-        insert_query = text("""
+  # Insert outlier details
+  for _, row in outliers_df6.iterrows():
+    params = {}
+    for col in outliers_df6.columns:
+      value = row[col]
+      if isinstance(value, float) and np.isnan(value):
+        params[col.lower()] = None
+      elif hasattr(value, 'dtype') and np.issubdtype(value.dtype, np.integer):
+        params[col.lower()] = int(value)
+      elif hasattr(value, 'dtype') and np.issubdtype(value.dtype, np.floating):
+        params[col.lower()] = float(value)
+      else:
+        params[col.lower()] = value
+
+    insert_query = text("""
             INSERT INTO outliers (
             OutlierRunId, WardId, HouseHoldId, Indicator, IndicatorType, 
             OutlierType, OutlierValue, TestStatisticValue, TestType, Level, 
@@ -365,21 +377,20 @@ if coping_df.empty:
             :referencemean, :referencestd, :populationmean, :populationstd
         )
     """)
-    
-    try:
-        with engine.begin() as conn:
-            conn.execute(insert_query, params)
-        
-        # Print progress after every 100 rows
-        if _ % 100 == 0:
-            print(f"Inserted {_} outlier records...")
-    except Exception as e:
-        print(f"Error inserting record {_}: {e}")
 
-    print(f"Inserted {len(outliers_df6)} outlier records successfully")
+  try:
+    with engine.begin() as conn:
+      conn.execute(insert_query, params)
 
+    # Print progress after every 100 rows
+    if _ % 100 == 0:
+      print(f"Inserted {_} outlier records...")
+  except Exception as e:
+    print(f"Error inserting record {_}: {e}")
 
-#Crop_production
+  print(f"Inserted {len(outliers_df6)} outlier records successfully")
+
+# Crop_production
 query = """
         SELECT 
             hcp.HhaQuestionnaireSessionId, hhs.CountyId, hhs.LivelihoodZoneId, hhs.WardId, hhs.HouseHoldId, hhs.SubCountyId,
@@ -397,114 +408,120 @@ crop_df = pd.read_sql(query, engine)
 
 # Check if dataframe is empty before proceeding
 if coping_df.empty:
-    print("Warning: No data returned from query")
+  print("Warning: No data returned from query")
+  exit()
+
+  # copying_outliers = Crop_Outliers()
+
+  # Call the method with your dataframe
+  results = hha_outliers.detect_outliers_crop_production(df=crop_df)
+
+  dataset_info = results['dataset_info']
+  column_stats = results['column_stats']
+  outliers_df = results['outliers']
+
+  print("Dataset info:", dataset_info)
+  print(f"Found {len(outliers_df)} outliers")
+
+  # Check if we have any outliers before proceeding
+  if outliers_df.empty:
+    print("No outliers found. Exiting.")
     exit()
 
-    #copying_outliers = Crop_Outliers()
+  outliers_df2 = outliers_df[
+    ['DataCollectionExerciseId', 'CountyId', 'ExerciseStartDate']]
+  outliers_df2['DataCollectionExerciseId'] = outliers_df2[
+    'DataCollectionExerciseId'].astype(int)
+  outliers_df3 = outliers_df2.drop_duplicates()
+  outliers_df3['OutlierRunName'] = outliers_df3['CountyId'].astype(str) + '' + \
+                                   outliers_df3['ExerciseStartDate'].astype(str)
+  outliers_df3['QuestionnaireType'] = "HHA"
+  outliers_df4 = outliers_df3[
+    ['OutlierRunName', 'DataCollectionExerciseId', 'QuestionnaireType']]
 
-    # Call the method with your dataframe
-    results = hha_outliers.detect_outliers_crop_production(df=crop_df)
+  # Delete any previous outlier test instances
+  outlier_run_names = outliers_df3['OutlierRunName'].tolist()
+  data_collection_exercise_ids = outliers_df3[
+    'DataCollectionExerciseId'].tolist()
 
-
-    dataset_info = results['dataset_info']
-    column_stats = results['column_stats']
-    outliers_df = results['outliers']
-
-    print("Dataset info:", dataset_info)
-    print(f"Found {len(outliers_df)} outliers")
-
-# Check if we have any outliers before proceeding
-    if outliers_df.empty:
-        print("No outliers found. Exiting.")
-        exit()
-
-    outliers_df2 = outliers_df[['DataCollectionExerciseId', 'CountyId', 'ExerciseStartDate']]
-    outliers_df2['DataCollectionExerciseId'] = outliers_df2['DataCollectionExerciseId'].astype(int)
-    outliers_df3 = outliers_df2.drop_duplicates()
-    outliers_df3['OutlierRunName'] = outliers_df3['CountyId'].astype(str) + '' + outliers_df3['ExerciseStartDate'].astype(str)
-    outliers_df3['QuestionnaireType'] = "HHA"
-    outliers_df4 = outliers_df3[['OutlierRunName', 'DataCollectionExerciseId', 'QuestionnaireType']]
-
-# Delete any previous outlier test instances
-    outlier_run_names = outliers_df3['OutlierRunName'].tolist()
-    data_collection_exercise_ids = outliers_df3['DataCollectionExerciseId'].tolist()
-
-
-    for i in range(len(outlier_run_names)):
-        del_query = text("""
+  for i in range(len(outlier_run_names)):
+    del_query = text("""
         DELETE FROM outlier_runs 
         WHERE OutlierRunName = :run_name AND DataCollectionExerciseId = :exercise_id
     """)
-    
-    try:
-        with engine.begin() as conn:
-            result = conn.execute(
-                del_query, 
-                {"run_name": outlier_run_names[i], "exercise_id": int(data_collection_exercise_ids[i])}
-            )
-            print(f"Deleted {result.rowcount} previous outlier runs successfully")
-    except Exception as e:
-        print(f"Error occurred during deletion: {e}")
 
-    # Insert new outlier test instances
-    for _, row in outliers_df4.iterrows():
-        insert_query = text("""
+  try:
+    with engine.begin() as conn:
+      result = conn.execute(
+          del_query,
+          {"run_name": outlier_run_names[i],
+           "exercise_id": int(data_collection_exercise_ids[i])}
+      )
+      print(f"Deleted {result.rowcount} previous outlier runs successfully")
+  except Exception as e:
+    print(f"Error occurred during deletion: {e}")
+
+  # Insert new outlier test instances
+  for _, row in outliers_df4.iterrows():
+    insert_query = text("""
         INSERT INTO outlier_runs (
             OutlierRunName, DataCollectionExerciseId, QuestionnaireType
         ) 
         VALUES (:run_name, :exercise_id, :questionnaire_type)
     """)
-    
-    try:
-        with engine.begin() as conn:
-            conn.execute(
-                insert_query, 
-                {
-                    "run_name": row['OutlierRunName'],
-                    "exercise_id": int(row['DataCollectionExerciseId']),
-                    "questionnaire_type": row['QuestionnaireType']
-                }
-            )
-        print(f"Inserted outlier run record successfully")
-    except Exception as e:
-        print(f"Error occurred during outlier run insertion: {e}")
 
-# Get the OutlierRunId for the newly created run
-    outlier_run_name = outliers_df3['OutlierRunName'].iloc[0]
-    data_collection_exercise_id = outliers_df3['DataCollectionExerciseId'].iloc[0]
+  try:
+    with engine.begin() as conn:
+      conn.execute(
+          insert_query,
+          {
+            "run_name": row['OutlierRunName'],
+            "exercise_id": int(row['DataCollectionExerciseId']),
+            "questionnaire_type": row['QuestionnaireType']
+          }
+      )
+    print(f"Inserted outlier run record successfully")
+  except Exception as e:
+    print(f"Error occurred during outlier run insertion: {e}")
 
-    query = text("""
+  # Get the OutlierRunId for the newly created run
+  outlier_run_name = outliers_df3['OutlierRunName'].iloc[0]
+  data_collection_exercise_id = outliers_df3['DataCollectionExerciseId'].iloc[0]
+
+  query = text("""
     SELECT outlier_runs.OutlierRunId
     FROM outlier_runs
     WHERE OutlierRunName = :run_name 
     AND DataCollectionExerciseId = :exercise_id
 """)
 
-    with engine.connect() as conn:
-        result = conn.execute(
-            query, 
-            {"run_name": outlier_run_name, "exercise_id": int(data_collection_exercise_id)}
-        )
-        OutlierRunId = result.scalar()
+  with engine.connect() as conn:
+    result = conn.execute(
+        query,
+        {"run_name": outlier_run_name,
+         "exercise_id": int(data_collection_exercise_id)}
+    )
+    OutlierRunId = result.scalar()
 
-    if OutlierRunId is None:
-        print("Error: Could not retrieve OutlierRunId. Exiting.")
-        exit()
+  if OutlierRunId is None:
+    print("Error: Could not retrieve OutlierRunId. Exiting.")
+    exit()
 
-    print(f"Using OutlierRunId: {OutlierRunId}")
+  print(f"Using OutlierRunId: {OutlierRunId}")
 
-    # Add OutlierRunId to the outliers dataframe and convert numpy types
-    outliers_df5 = outliers_df.copy()
-    outliers_df5['OutlierRunId'] = OutlierRunId
-    outliers_df5 = convert_numpy_types(outliers_df5)
+  # Add OutlierRunId to the outliers dataframe and convert numpy types
+  outliers_df5 = outliers_df.copy()
+  outliers_df5['OutlierRunId'] = OutlierRunId
+  outliers_df5 = convert_numpy_types(outliers_df5)
 
-# Select and rename columns for the final insert
-    outliers_df6 = outliers_df5[['OutlierRunId', 'WardId', 'HouseHoldId', 'analyzed_column', 
-                            'IndicatorType', 'outlier_type', 'OutlierValue', 'test_statistic_value', 
-                            'test_type', 'level', 'reference_mean', 'reference_std', 
-                            'population_mean', 'population_std']]
+  # Select and rename columns for the final insert
+  outliers_df6 = outliers_df5[
+    ['OutlierRunId', 'WardId', 'HouseHoldId', 'analyzed_column',
+     'IndicatorType', 'outlier_type', 'OutlierValue', 'test_statistic_value',
+     'test_type', 'level', 'reference_mean', 'reference_std',
+     'population_mean', 'population_std']]
 
-    outliers_df6.rename(columns={
+  outliers_df6.rename(columns={
     'analyzed_column': 'Indicator',
     'outlier_type': 'OutlierType',
     'test_statistic_value': 'TestStatisticValue',
@@ -514,23 +531,23 @@ if coping_df.empty:
     'reference_std': 'ReferenceStd',
     'population_mean': 'PopulationMean',
     'population_std': 'PopulationStd'
-    }, inplace=True)
+  }, inplace=True)
 
-# Insert outlier details
-    for _, row in outliers_df6.iterrows():
-        params = {}
-        for col in outliers_df6.columns:
-            value = row[col]
-            if isinstance(value, float) and np.isnan(value):
-                params[col.lower()] = None
-            elif hasattr(value, 'dtype') and np.issubdtype(value.dtype, np.integer):
-                params[col.lower()] = int(value)
-            elif hasattr(value, 'dtype') and np.issubdtype(value.dtype, np.floating):
-                params[col.lower()] = float(value)
-            else:
-                params[col.lower()] = value
-    
-        insert_query = text("""
+  # Insert outlier details
+  for _, row in outliers_df6.iterrows():
+    params = {}
+    for col in outliers_df6.columns:
+      value = row[col]
+      if isinstance(value, float) and np.isnan(value):
+        params[col.lower()] = None
+      elif hasattr(value, 'dtype') and np.issubdtype(value.dtype, np.integer):
+        params[col.lower()] = int(value)
+      elif hasattr(value, 'dtype') and np.issubdtype(value.dtype, np.floating):
+        params[col.lower()] = float(value)
+      else:
+        params[col.lower()] = value
+
+    insert_query = text("""
             INSERT INTO outliers (
             OutlierRunId, WardId, HouseHoldId, Indicator, IndicatorType, 
             OutlierType, OutlierValue, TestStatisticValue, TestType, Level, 
@@ -542,21 +559,20 @@ if coping_df.empty:
             :referencemean, :referencestd, :populationmean, :populationstd
         )
     """)
-    
-    try:
-        with engine.begin() as conn:
-            conn.execute(insert_query, params)
-        
-        # Print progress after every 100 rows
-        if _ % 100 == 0:
-            print(f"Inserted {_} outlier records...")
-    except Exception as e:
-        print(f"Error inserting record {_}: {e}")
 
-    print(f"Inserted {len(outliers_df6)} outlier records successfully")
+  try:
+    with engine.begin() as conn:
+      conn.execute(insert_query, params)
 
+    # Print progress after every 100 rows
+    if _ % 100 == 0:
+      print(f"Inserted {_} outlier records...")
+  except Exception as e:
+    print(f"Error inserting record {_}: {e}")
 
-#Crop_production
+  print(f"Inserted {len(outliers_df6)} outlier records successfully")
+
+# Crop_production
 query = """
         SELECT 
             hcp.HhaQuestionnaireSessionId, hhs.CountyId, hhs.LivelihoodZoneId, hhs.WardId, hhs.HouseHoldId, hhs.SubCountyId,
@@ -574,114 +590,120 @@ crop_df = pd.read_sql(query, engine)
 
 # Check if dataframe is empty before proceeding
 if coping_df.empty:
-    print("Warning: No data returned from query")
+  print("Warning: No data returned from query")
+  exit()
+
+  # copying_outliers = Crop_Outliers()
+
+  # Call the method with your dataframe
+  results = hha_outliers.detect_outliers_crop_production(df=crop_df)
+
+  dataset_info = results['dataset_info']
+  column_stats = results['column_stats']
+  outliers_df = results['outliers']
+
+  print("Dataset info:", dataset_info)
+  print(f"Found {len(outliers_df)} outliers")
+
+  # Check if we have any outliers before proceeding
+  if outliers_df.empty:
+    print("No outliers found. Exiting.")
     exit()
 
-    #copying_outliers = Crop_Outliers()
+  outliers_df2 = outliers_df[
+    ['DataCollectionExerciseId', 'CountyId', 'ExerciseStartDate']]
+  outliers_df2['DataCollectionExerciseId'] = outliers_df2[
+    'DataCollectionExerciseId'].astype(int)
+  outliers_df3 = outliers_df2.drop_duplicates()
+  outliers_df3['OutlierRunName'] = outliers_df3['CountyId'].astype(str) + '' + \
+                                   outliers_df3['ExerciseStartDate'].astype(str)
+  outliers_df3['QuestionnaireType'] = "HHA"
+  outliers_df4 = outliers_df3[
+    ['OutlierRunName', 'DataCollectionExerciseId', 'QuestionnaireType']]
 
-    # Call the method with your dataframe
-    results = hha_outliers.detect_outliers_crop_production(df=crop_df)
+  # Delete any previous outlier test instances
+  outlier_run_names = outliers_df3['OutlierRunName'].tolist()
+  data_collection_exercise_ids = outliers_df3[
+    'DataCollectionExerciseId'].tolist()
 
-
-    dataset_info = results['dataset_info']
-    column_stats = results['column_stats']
-    outliers_df = results['outliers']
-
-    print("Dataset info:", dataset_info)
-    print(f"Found {len(outliers_df)} outliers")
-
-# Check if we have any outliers before proceeding
-    if outliers_df.empty:
-        print("No outliers found. Exiting.")
-        exit()
-
-    outliers_df2 = outliers_df[['DataCollectionExerciseId', 'CountyId', 'ExerciseStartDate']]
-    outliers_df2['DataCollectionExerciseId'] = outliers_df2['DataCollectionExerciseId'].astype(int)
-    outliers_df3 = outliers_df2.drop_duplicates()
-    outliers_df3['OutlierRunName'] = outliers_df3['CountyId'].astype(str) + '' + outliers_df3['ExerciseStartDate'].astype(str)
-    outliers_df3['QuestionnaireType'] = "HHA"
-    outliers_df4 = outliers_df3[['OutlierRunName', 'DataCollectionExerciseId', 'QuestionnaireType']]
-
-# Delete any previous outlier test instances
-    outlier_run_names = outliers_df3['OutlierRunName'].tolist()
-    data_collection_exercise_ids = outliers_df3['DataCollectionExerciseId'].tolist()
-
-
-    for i in range(len(outlier_run_names)):
-        del_query = text("""
+  for i in range(len(outlier_run_names)):
+    del_query = text("""
         DELETE FROM outlier_runs 
         WHERE OutlierRunName = :run_name AND DataCollectionExerciseId = :exercise_id
     """)
-    
-    try:
-        with engine.begin() as conn:
-            result = conn.execute(
-                del_query, 
-                {"run_name": outlier_run_names[i], "exercise_id": int(data_collection_exercise_ids[i])}
-            )
-            print(f"Deleted {result.rowcount} previous outlier runs successfully")
-    except Exception as e:
-        print(f"Error occurred during deletion: {e}")
 
-    # Insert new outlier test instances
-    for _, row in outliers_df4.iterrows():
-        insert_query = text("""
+  try:
+    with engine.begin() as conn:
+      result = conn.execute(
+          del_query,
+          {"run_name": outlier_run_names[i],
+           "exercise_id": int(data_collection_exercise_ids[i])}
+      )
+      print(f"Deleted {result.rowcount} previous outlier runs successfully")
+  except Exception as e:
+    print(f"Error occurred during deletion: {e}")
+
+  # Insert new outlier test instances
+  for _, row in outliers_df4.iterrows():
+    insert_query = text("""
         INSERT INTO outlier_runs (
             OutlierRunName, DataCollectionExerciseId, QuestionnaireType
         ) 
         VALUES (:run_name, :exercise_id, :questionnaire_type)
     """)
-    
-    try:
-        with engine.begin() as conn:
-            conn.execute(
-                insert_query, 
-                {
-                    "run_name": row['OutlierRunName'],
-                    "exercise_id": int(row['DataCollectionExerciseId']),
-                    "questionnaire_type": row['QuestionnaireType']
-                }
-            )
-        print(f"Inserted outlier run record successfully")
-    except Exception as e:
-        print(f"Error occurred during outlier run insertion: {e}")
 
-# Get the OutlierRunId for the newly created run
-    outlier_run_name = outliers_df3['OutlierRunName'].iloc[0]
-    data_collection_exercise_id = outliers_df3['DataCollectionExerciseId'].iloc[0]
+  try:
+    with engine.begin() as conn:
+      conn.execute(
+          insert_query,
+          {
+            "run_name": row['OutlierRunName'],
+            "exercise_id": int(row['DataCollectionExerciseId']),
+            "questionnaire_type": row['QuestionnaireType']
+          }
+      )
+    print(f"Inserted outlier run record successfully")
+  except Exception as e:
+    print(f"Error occurred during outlier run insertion: {e}")
 
-    query = text("""
+  # Get the OutlierRunId for the newly created run
+  outlier_run_name = outliers_df3['OutlierRunName'].iloc[0]
+  data_collection_exercise_id = outliers_df3['DataCollectionExerciseId'].iloc[0]
+
+  query = text("""
     SELECT outlier_runs.OutlierRunId
     FROM outlier_runs
     WHERE OutlierRunName = :run_name 
     AND DataCollectionExerciseId = :exercise_id
 """)
 
-    with engine.connect() as conn:
-        result = conn.execute(
-            query, 
-            {"run_name": outlier_run_name, "exercise_id": int(data_collection_exercise_id)}
-        )
-        OutlierRunId = result.scalar()
+  with engine.connect() as conn:
+    result = conn.execute(
+        query,
+        {"run_name": outlier_run_name,
+         "exercise_id": int(data_collection_exercise_id)}
+    )
+    OutlierRunId = result.scalar()
 
-    if OutlierRunId is None:
-        print("Error: Could not retrieve OutlierRunId. Exiting.")
-        exit()
+  if OutlierRunId is None:
+    print("Error: Could not retrieve OutlierRunId. Exiting.")
+    exit()
 
-    print(f"Using OutlierRunId: {OutlierRunId}")
+  print(f"Using OutlierRunId: {OutlierRunId}")
 
-    # Add OutlierRunId to the outliers dataframe and convert numpy types
-    outliers_df5 = outliers_df.copy()
-    outliers_df5['OutlierRunId'] = OutlierRunId
-    outliers_df5 = convert_numpy_types(outliers_df5)
+  # Add OutlierRunId to the outliers dataframe and convert numpy types
+  outliers_df5 = outliers_df.copy()
+  outliers_df5['OutlierRunId'] = OutlierRunId
+  outliers_df5 = convert_numpy_types(outliers_df5)
 
-# Select and rename columns for the final insert
-    outliers_df6 = outliers_df5[['OutlierRunId', 'WardId', 'HouseHoldId', 'analyzed_column', 
-                            'IndicatorType', 'outlier_type', 'OutlierValue', 'test_statistic_value', 
-                            'test_type', 'level', 'reference_mean', 'reference_std', 
-                            'population_mean', 'population_std']]
+  # Select and rename columns for the final insert
+  outliers_df6 = outliers_df5[
+    ['OutlierRunId', 'WardId', 'HouseHoldId', 'analyzed_column',
+     'IndicatorType', 'outlier_type', 'OutlierValue', 'test_statistic_value',
+     'test_type', 'level', 'reference_mean', 'reference_std',
+     'population_mean', 'population_std']]
 
-    outliers_df6.rename(columns={
+  outliers_df6.rename(columns={
     'analyzed_column': 'Indicator',
     'outlier_type': 'OutlierType',
     'test_statistic_value': 'TestStatisticValue',
@@ -691,23 +713,23 @@ if coping_df.empty:
     'reference_std': 'ReferenceStd',
     'population_mean': 'PopulationMean',
     'population_std': 'PopulationStd'
-    }, inplace=True)
+  }, inplace=True)
 
-# Insert outlier details
-    for _, row in outliers_df6.iterrows():
-        params = {}
-        for col in outliers_df6.columns:
-            value = row[col]
-            if isinstance(value, float) and np.isnan(value):
-                params[col.lower()] = None
-            elif hasattr(value, 'dtype') and np.issubdtype(value.dtype, np.integer):
-                params[col.lower()] = int(value)
-            elif hasattr(value, 'dtype') and np.issubdtype(value.dtype, np.floating):
-                params[col.lower()] = float(value)
-            else:
-                params[col.lower()] = value
-    
-        insert_query = text("""
+  # Insert outlier details
+  for _, row in outliers_df6.iterrows():
+    params = {}
+    for col in outliers_df6.columns:
+      value = row[col]
+      if isinstance(value, float) and np.isnan(value):
+        params[col.lower()] = None
+      elif hasattr(value, 'dtype') and np.issubdtype(value.dtype, np.integer):
+        params[col.lower()] = int(value)
+      elif hasattr(value, 'dtype') and np.issubdtype(value.dtype, np.floating):
+        params[col.lower()] = float(value)
+      else:
+        params[col.lower()] = value
+
+    insert_query = text("""
             INSERT INTO outliers (
             OutlierRunId, WardId, HouseHoldId, Indicator, IndicatorType, 
             OutlierType, OutlierValue, TestStatisticValue, TestType, Level, 
@@ -719,22 +741,20 @@ if coping_df.empty:
             :referencemean, :referencestd, :populationmean, :populationstd
         )
     """)
-    
-    try:
-        with engine.begin() as conn:
-            conn.execute(insert_query, params)
-        
-        # Print progress after every 100 rows
-        if _ % 100 == 0:
-            print(f"Inserted {_} outlier records...")
-    except Exception as e:
-        print(f"Error inserting record {_}: {e}")
 
-    print(f"Inserted {len(outliers_df6)} outlier records successfully")
+  try:
+    with engine.begin() as conn:
+      conn.execute(insert_query, params)
 
+    # Print progress after every 100 rows
+    if _ % 100 == 0:
+      print(f"Inserted {_} outlier records...")
+  except Exception as e:
+    print(f"Error inserting record {_}: {e}")
 
+  print(f"Inserted {len(outliers_df6)} outlier records successfully")
 
-#Livestock_production
+# Livestock_production
 query = """
         SELECT 
             hlp.HhaQuestionnaireSessionId, hhs.CountyId, hhs.LivelihoodZoneId, hhs.WardId, hhs.HouseHoldId, hhs.SubCountyId,
@@ -752,114 +772,120 @@ livestock_df = pd.read_sql(query, engine)
 
 # Check if dataframe is empty before proceeding
 if coping_df.empty:
-    print("Warning: No data returned from query")
+  print("Warning: No data returned from query")
+  exit()
+
+  # copying_outliers = Crop_Outliers()
+
+  # Call the method with your dataframe
+  results = hha_outliers.detect_outliers_livestock_production(df=livestock_df)
+
+  dataset_info = results['dataset_info']
+  column_stats = results['column_stats']
+  outliers_df = results['outliers']
+
+  print("Dataset info:", dataset_info)
+  print(f"Found {len(outliers_df)} outliers")
+
+  # Check if we have any outliers before proceeding
+  if outliers_df.empty:
+    print("No outliers found. Exiting.")
     exit()
 
-    #copying_outliers = Crop_Outliers()
+  outliers_df2 = outliers_df[
+    ['DataCollectionExerciseId', 'CountyId', 'ExerciseStartDate']]
+  outliers_df2['DataCollectionExerciseId'] = outliers_df2[
+    'DataCollectionExerciseId'].astype(int)
+  outliers_df3 = outliers_df2.drop_duplicates()
+  outliers_df3['OutlierRunName'] = outliers_df3['CountyId'].astype(str) + '' + \
+                                   outliers_df3['ExerciseStartDate'].astype(str)
+  outliers_df3['QuestionnaireType'] = "HHA"
+  outliers_df4 = outliers_df3[
+    ['OutlierRunName', 'DataCollectionExerciseId', 'QuestionnaireType']]
 
-    # Call the method with your dataframe
-    results = hha_outliers.detect_outliers_livestock_production(df=livestock_df)
+  # Delete any previous outlier test instances
+  outlier_run_names = outliers_df3['OutlierRunName'].tolist()
+  data_collection_exercise_ids = outliers_df3[
+    'DataCollectionExerciseId'].tolist()
 
-
-    dataset_info = results['dataset_info']
-    column_stats = results['column_stats']
-    outliers_df = results['outliers']
-
-    print("Dataset info:", dataset_info)
-    print(f"Found {len(outliers_df)} outliers")
-
-# Check if we have any outliers before proceeding
-    if outliers_df.empty:
-        print("No outliers found. Exiting.")
-        exit()
-
-    outliers_df2 = outliers_df[['DataCollectionExerciseId', 'CountyId', 'ExerciseStartDate']]
-    outliers_df2['DataCollectionExerciseId'] = outliers_df2['DataCollectionExerciseId'].astype(int)
-    outliers_df3 = outliers_df2.drop_duplicates()
-    outliers_df3['OutlierRunName'] = outliers_df3['CountyId'].astype(str) + '' + outliers_df3['ExerciseStartDate'].astype(str)
-    outliers_df3['QuestionnaireType'] = "HHA"
-    outliers_df4 = outliers_df3[['OutlierRunName', 'DataCollectionExerciseId', 'QuestionnaireType']]
-
-# Delete any previous outlier test instances
-    outlier_run_names = outliers_df3['OutlierRunName'].tolist()
-    data_collection_exercise_ids = outliers_df3['DataCollectionExerciseId'].tolist()
-
-
-    for i in range(len(outlier_run_names)):
-        del_query = text("""
+  for i in range(len(outlier_run_names)):
+    del_query = text("""
         DELETE FROM outlier_runs 
         WHERE OutlierRunName = :run_name AND DataCollectionExerciseId = :exercise_id
     """)
-    
-    try:
-        with engine.begin() as conn:
-            result = conn.execute(
-                del_query, 
-                {"run_name": outlier_run_names[i], "exercise_id": int(data_collection_exercise_ids[i])}
-            )
-            print(f"Deleted {result.rowcount} previous outlier runs successfully")
-    except Exception as e:
-        print(f"Error occurred during deletion: {e}")
 
-    # Insert new outlier test instances
-    for _, row in outliers_df4.iterrows():
-        insert_query = text("""
+  try:
+    with engine.begin() as conn:
+      result = conn.execute(
+          del_query,
+          {"run_name": outlier_run_names[i],
+           "exercise_id": int(data_collection_exercise_ids[i])}
+      )
+      print(f"Deleted {result.rowcount} previous outlier runs successfully")
+  except Exception as e:
+    print(f"Error occurred during deletion: {e}")
+
+  # Insert new outlier test instances
+  for _, row in outliers_df4.iterrows():
+    insert_query = text("""
         INSERT INTO outlier_runs (
             OutlierRunName, DataCollectionExerciseId, QuestionnaireType
         ) 
         VALUES (:run_name, :exercise_id, :questionnaire_type)
     """)
-    
-    try:
-        with engine.begin() as conn:
-            conn.execute(
-                insert_query, 
-                {
-                    "run_name": row['OutlierRunName'],
-                    "exercise_id": int(row['DataCollectionExerciseId']),
-                    "questionnaire_type": row['QuestionnaireType']
-                }
-            )
-        print(f"Inserted outlier run record successfully")
-    except Exception as e:
-        print(f"Error occurred during outlier run insertion: {e}")
 
-# Get the OutlierRunId for the newly created run
-    outlier_run_name = outliers_df3['OutlierRunName'].iloc[0]
-    data_collection_exercise_id = outliers_df3['DataCollectionExerciseId'].iloc[0]
+  try:
+    with engine.begin() as conn:
+      conn.execute(
+          insert_query,
+          {
+            "run_name": row['OutlierRunName'],
+            "exercise_id": int(row['DataCollectionExerciseId']),
+            "questionnaire_type": row['QuestionnaireType']
+          }
+      )
+    print(f"Inserted outlier run record successfully")
+  except Exception as e:
+    print(f"Error occurred during outlier run insertion: {e}")
 
-    query = text("""
+  # Get the OutlierRunId for the newly created run
+  outlier_run_name = outliers_df3['OutlierRunName'].iloc[0]
+  data_collection_exercise_id = outliers_df3['DataCollectionExerciseId'].iloc[0]
+
+  query = text("""
     SELECT outlier_runs.OutlierRunId
     FROM outlier_runs
     WHERE OutlierRunName = :run_name 
     AND DataCollectionExerciseId = :exercise_id
 """)
 
-    with engine.connect() as conn:
-        result = conn.execute(
-            query, 
-            {"run_name": outlier_run_name, "exercise_id": int(data_collection_exercise_id)}
-        )
-        OutlierRunId = result.scalar()
+  with engine.connect() as conn:
+    result = conn.execute(
+        query,
+        {"run_name": outlier_run_name,
+         "exercise_id": int(data_collection_exercise_id)}
+    )
+    OutlierRunId = result.scalar()
 
-    if OutlierRunId is None:
-        print("Error: Could not retrieve OutlierRunId. Exiting.")
-        exit()
+  if OutlierRunId is None:
+    print("Error: Could not retrieve OutlierRunId. Exiting.")
+    exit()
 
-    print(f"Using OutlierRunId: {OutlierRunId}")
+  print(f"Using OutlierRunId: {OutlierRunId}")
 
-    # Add OutlierRunId to the outliers dataframe and convert numpy types
-    outliers_df5 = outliers_df.copy()
-    outliers_df5['OutlierRunId'] = OutlierRunId
-    outliers_df5 = convert_numpy_types(outliers_df5)
+  # Add OutlierRunId to the outliers dataframe and convert numpy types
+  outliers_df5 = outliers_df.copy()
+  outliers_df5['OutlierRunId'] = OutlierRunId
+  outliers_df5 = convert_numpy_types(outliers_df5)
 
-# Select and rename columns for the final insert
-    outliers_df6 = outliers_df5[['OutlierRunId', 'WardId', 'HouseHoldId', 'analyzed_column', 
-                            'IndicatorType', 'outlier_type', 'OutlierValue', 'test_statistic_value', 
-                            'test_type', 'level', 'reference_mean', 'reference_std', 
-                            'population_mean', 'population_std']]
+  # Select and rename columns for the final insert
+  outliers_df6 = outliers_df5[
+    ['OutlierRunId', 'WardId', 'HouseHoldId', 'analyzed_column',
+     'IndicatorType', 'outlier_type', 'OutlierValue', 'test_statistic_value',
+     'test_type', 'level', 'reference_mean', 'reference_std',
+     'population_mean', 'population_std']]
 
-    outliers_df6.rename(columns={
+  outliers_df6.rename(columns={
     'analyzed_column': 'Indicator',
     'outlier_type': 'OutlierType',
     'test_statistic_value': 'TestStatisticValue',
@@ -869,23 +895,23 @@ if coping_df.empty:
     'reference_std': 'ReferenceStd',
     'population_mean': 'PopulationMean',
     'population_std': 'PopulationStd'
-    }, inplace=True)
+  }, inplace=True)
 
-# Insert outlier details
-    for _, row in outliers_df6.iterrows():
-        params = {}
-        for col in outliers_df6.columns:
-            value = row[col]
-            if isinstance(value, float) and np.isnan(value):
-                params[col.lower()] = None
-            elif hasattr(value, 'dtype') and np.issubdtype(value.dtype, np.integer):
-                params[col.lower()] = int(value)
-            elif hasattr(value, 'dtype') and np.issubdtype(value.dtype, np.floating):
-                params[col.lower()] = float(value)
-            else:
-                params[col.lower()] = value
-    
-        insert_query = text("""
+  # Insert outlier details
+  for _, row in outliers_df6.iterrows():
+    params = {}
+    for col in outliers_df6.columns:
+      value = row[col]
+      if isinstance(value, float) and np.isnan(value):
+        params[col.lower()] = None
+      elif hasattr(value, 'dtype') and np.issubdtype(value.dtype, np.integer):
+        params[col.lower()] = int(value)
+      elif hasattr(value, 'dtype') and np.issubdtype(value.dtype, np.floating):
+        params[col.lower()] = float(value)
+      else:
+        params[col.lower()] = value
+
+    insert_query = text("""
             INSERT INTO outliers (
             OutlierRunId, WardId, HouseHoldId, Indicator, IndicatorType, 
             OutlierType, OutlierValue, TestStatisticValue, TestType, Level, 
@@ -897,22 +923,20 @@ if coping_df.empty:
             :referencemean, :referencestd, :populationmean, :populationstd
         )
     """)
-    
-    try:
-        with engine.begin() as conn:
-            conn.execute(insert_query, params)
-        
-        # Print progress after every 100 rows
-        if _ % 100 == 0:
-            print(f"Inserted {_} outlier records...")
-    except Exception as e:
-        print(f"Error inserting record {_}: {e}")
 
-    print(f"Inserted {len(outliers_df6)} outlier records successfully")
+  try:
+    with engine.begin() as conn:
+      conn.execute(insert_query, params)
 
+    # Print progress after every 100 rows
+    if _ % 100 == 0:
+      print(f"Inserted {_} outlier records...")
+  except Exception as e:
+    print(f"Error inserting record {_}: {e}")
 
+  print(f"Inserted {len(outliers_df6)} outlier records successfully")
 
-#Livestock_production
+# Livestock_production
 query = """
         SELECT 
             hfc.HhaQuestionnaireSessionId, hhs.CountyId, hhs.LivelihoodZoneId, hhs.WardId, hhs.HouseHoldId, hhs.SubCountyId,
@@ -928,114 +952,120 @@ food_c_df = pd.read_sql(query, engine)
 
 # Check if dataframe is empty before proceeding
 if coping_df.empty:
-    print("Warning: No data returned from query")
+  print("Warning: No data returned from query")
+  exit()
+
+  # copying_outliers = Crop_Outliers()
+
+  # Call the method with your dataframe
+  results = hha_outliers.detect_outliers_Food_Consumption(df=food_c_df)
+
+  dataset_info = results['dataset_info']
+  column_stats = results['column_stats']
+  outliers_df = results['outliers']
+
+  print("Dataset info:", dataset_info)
+  print(f"Found {len(outliers_df)} outliers")
+
+  # Check if we have any outliers before proceeding
+  if outliers_df.empty:
+    print("No outliers found. Exiting.")
     exit()
 
-    #copying_outliers = Crop_Outliers()
+  outliers_df2 = outliers_df[
+    ['DataCollectionExerciseId', 'CountyId', 'ExerciseStartDate']]
+  outliers_df2['DataCollectionExerciseId'] = outliers_df2[
+    'DataCollectionExerciseId'].astype(int)
+  outliers_df3 = outliers_df2.drop_duplicates()
+  outliers_df3['OutlierRunName'] = outliers_df3['CountyId'].astype(str) + '' + \
+                                   outliers_df3['ExerciseStartDate'].astype(str)
+  outliers_df3['QuestionnaireType'] = "HHA"
+  outliers_df4 = outliers_df3[
+    ['OutlierRunName', 'DataCollectionExerciseId', 'QuestionnaireType']]
 
-    # Call the method with your dataframe
-    results = hha_outliers.detect_outliers_Food_Consumption(df=food_c_df)
+  # Delete any previous outlier test instances
+  outlier_run_names = outliers_df3['OutlierRunName'].tolist()
+  data_collection_exercise_ids = outliers_df3[
+    'DataCollectionExerciseId'].tolist()
 
-
-    dataset_info = results['dataset_info']
-    column_stats = results['column_stats']
-    outliers_df = results['outliers']
-
-    print("Dataset info:", dataset_info)
-    print(f"Found {len(outliers_df)} outliers")
-
-# Check if we have any outliers before proceeding
-    if outliers_df.empty:
-        print("No outliers found. Exiting.")
-        exit()
-
-    outliers_df2 = outliers_df[['DataCollectionExerciseId', 'CountyId', 'ExerciseStartDate']]
-    outliers_df2['DataCollectionExerciseId'] = outliers_df2['DataCollectionExerciseId'].astype(int)
-    outliers_df3 = outliers_df2.drop_duplicates()
-    outliers_df3['OutlierRunName'] = outliers_df3['CountyId'].astype(str) + '' + outliers_df3['ExerciseStartDate'].astype(str)
-    outliers_df3['QuestionnaireType'] = "HHA"
-    outliers_df4 = outliers_df3[['OutlierRunName', 'DataCollectionExerciseId', 'QuestionnaireType']]
-
-# Delete any previous outlier test instances
-    outlier_run_names = outliers_df3['OutlierRunName'].tolist()
-    data_collection_exercise_ids = outliers_df3['DataCollectionExerciseId'].tolist()
-
-
-    for i in range(len(outlier_run_names)):
-        del_query = text("""
+  for i in range(len(outlier_run_names)):
+    del_query = text("""
         DELETE FROM outlier_runs 
         WHERE OutlierRunName = :run_name AND DataCollectionExerciseId = :exercise_id
     """)
-    
-    try:
-        with engine.begin() as conn:
-            result = conn.execute(
-                del_query, 
-                {"run_name": outlier_run_names[i], "exercise_id": int(data_collection_exercise_ids[i])}
-            )
-            print(f"Deleted {result.rowcount} previous outlier runs successfully")
-    except Exception as e:
-        print(f"Error occurred during deletion: {e}")
 
-    # Insert new outlier test instances
-    for _, row in outliers_df4.iterrows():
-        insert_query = text("""
+  try:
+    with engine.begin() as conn:
+      result = conn.execute(
+          del_query,
+          {"run_name": outlier_run_names[i],
+           "exercise_id": int(data_collection_exercise_ids[i])}
+      )
+      print(f"Deleted {result.rowcount} previous outlier runs successfully")
+  except Exception as e:
+    print(f"Error occurred during deletion: {e}")
+
+  # Insert new outlier test instances
+  for _, row in outliers_df4.iterrows():
+    insert_query = text("""
         INSERT INTO outlier_runs (
             OutlierRunName, DataCollectionExerciseId, QuestionnaireType
         ) 
         VALUES (:run_name, :exercise_id, :questionnaire_type)
     """)
-    
-    try:
-        with engine.begin() as conn:
-            conn.execute(
-                insert_query, 
-                {
-                    "run_name": row['OutlierRunName'],
-                    "exercise_id": int(row['DataCollectionExerciseId']),
-                    "questionnaire_type": row['QuestionnaireType']
-                }
-            )
-        print(f"Inserted outlier run record successfully")
-    except Exception as e:
-        print(f"Error occurred during outlier run insertion: {e}")
 
-# Get the OutlierRunId for the newly created run
-    outlier_run_name = outliers_df3['OutlierRunName'].iloc[0]
-    data_collection_exercise_id = outliers_df3['DataCollectionExerciseId'].iloc[0]
+  try:
+    with engine.begin() as conn:
+      conn.execute(
+          insert_query,
+          {
+            "run_name": row['OutlierRunName'],
+            "exercise_id": int(row['DataCollectionExerciseId']),
+            "questionnaire_type": row['QuestionnaireType']
+          }
+      )
+    print(f"Inserted outlier run record successfully")
+  except Exception as e:
+    print(f"Error occurred during outlier run insertion: {e}")
 
-    query = text("""
+  # Get the OutlierRunId for the newly created run
+  outlier_run_name = outliers_df3['OutlierRunName'].iloc[0]
+  data_collection_exercise_id = outliers_df3['DataCollectionExerciseId'].iloc[0]
+
+  query = text("""
     SELECT outlier_runs.OutlierRunId
     FROM outlier_runs
     WHERE OutlierRunName = :run_name 
     AND DataCollectionExerciseId = :exercise_id
 """)
 
-    with engine.connect() as conn:
-        result = conn.execute(
-            query, 
-            {"run_name": outlier_run_name, "exercise_id": int(data_collection_exercise_id)}
-        )
-        OutlierRunId = result.scalar()
+  with engine.connect() as conn:
+    result = conn.execute(
+        query,
+        {"run_name": outlier_run_name,
+         "exercise_id": int(data_collection_exercise_id)}
+    )
+    OutlierRunId = result.scalar()
 
-    if OutlierRunId is None:
-        print("Error: Could not retrieve OutlierRunId. Exiting.")
-        exit()
+  if OutlierRunId is None:
+    print("Error: Could not retrieve OutlierRunId. Exiting.")
+    exit()
 
-    print(f"Using OutlierRunId: {OutlierRunId}")
+  print(f"Using OutlierRunId: {OutlierRunId}")
 
-    # Add OutlierRunId to the outliers dataframe and convert numpy types
-    outliers_df5 = outliers_df.copy()
-    outliers_df5['OutlierRunId'] = OutlierRunId
-    outliers_df5 = convert_numpy_types(outliers_df5)
+  # Add OutlierRunId to the outliers dataframe and convert numpy types
+  outliers_df5 = outliers_df.copy()
+  outliers_df5['OutlierRunId'] = OutlierRunId
+  outliers_df5 = convert_numpy_types(outliers_df5)
 
-# Select and rename columns for the final insert
-    outliers_df6 = outliers_df5[['OutlierRunId', 'WardId', 'HouseHoldId', 'analyzed_column', 
-                            'IndicatorType', 'outlier_type', 'OutlierValue', 'test_statistic_value', 
-                            'test_type', 'level', 'reference_mean', 'reference_std', 
-                            'population_mean', 'population_std']]
+  # Select and rename columns for the final insert
+  outliers_df6 = outliers_df5[
+    ['OutlierRunId', 'WardId', 'HouseHoldId', 'analyzed_column',
+     'IndicatorType', 'outlier_type', 'OutlierValue', 'test_statistic_value',
+     'test_type', 'level', 'reference_mean', 'reference_std',
+     'population_mean', 'population_std']]
 
-    outliers_df6.rename(columns={
+  outliers_df6.rename(columns={
     'analyzed_column': 'Indicator',
     'outlier_type': 'OutlierType',
     'test_statistic_value': 'TestStatisticValue',
@@ -1045,23 +1075,23 @@ if coping_df.empty:
     'reference_std': 'ReferenceStd',
     'population_mean': 'PopulationMean',
     'population_std': 'PopulationStd'
-    }, inplace=True)
+  }, inplace=True)
 
-# Insert outlier details
-    for _, row in outliers_df6.iterrows():
-        params = {}
-        for col in outliers_df6.columns:
-            value = row[col]
-            if isinstance(value, float) and np.isnan(value):
-                params[col.lower()] = None
-            elif hasattr(value, 'dtype') and np.issubdtype(value.dtype, np.integer):
-                params[col.lower()] = int(value)
-            elif hasattr(value, 'dtype') and np.issubdtype(value.dtype, np.floating):
-                params[col.lower()] = float(value)
-            else:
-                params[col.lower()] = value
-    
-        insert_query = text("""
+  # Insert outlier details
+  for _, row in outliers_df6.iterrows():
+    params = {}
+    for col in outliers_df6.columns:
+      value = row[col]
+      if isinstance(value, float) and np.isnan(value):
+        params[col.lower()] = None
+      elif hasattr(value, 'dtype') and np.issubdtype(value.dtype, np.integer):
+        params[col.lower()] = int(value)
+      elif hasattr(value, 'dtype') and np.issubdtype(value.dtype, np.floating):
+        params[col.lower()] = float(value)
+      else:
+        params[col.lower()] = value
+
+    insert_query = text("""
             INSERT INTO outliers (
             OutlierRunId, WardId, HouseHoldId, Indicator, IndicatorType, 
             OutlierType, OutlierValue, TestStatisticValue, TestType, Level, 
@@ -1073,18 +1103,17 @@ if coping_df.empty:
             :referencemean, :referencestd, :populationmean, :populationstd
         )
     """)
-    
-    try:
-        with engine.begin() as conn:
-            conn.execute(insert_query, params)
-        
-        # Print progress after every 100 rows
-        if _ % 100 == 0:
-            print(f"Inserted {_} outlier records...")
-    except Exception as e:
-        print(f"Error inserting record {_}: {e}")
 
-    print(f"Inserted {len(outliers_df6)} outlier records successfully")
+  try:
+    with engine.begin() as conn:
+      conn.execute(insert_query, params)
 
+    # Print progress after every 100 rows
+    if _ % 100 == 0:
+      print(f"Inserted {_} outlier records...")
+  except Exception as e:
+    print(f"Error inserting record {_}: {e}")
+
+  print(f"Inserted {len(outliers_df6)} outlier records successfully")
 
 print("Process completed successfully.")
