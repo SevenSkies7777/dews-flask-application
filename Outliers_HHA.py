@@ -3,13 +3,6 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 from scipy.stats import chi2
-from statsmodels.tsa.api import VAR
-from sklearn.metrics import mean_squared_error
-from datetime import timedelta
-import json
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sqlalchemy import create_engine, text
 
 class HHA_Outliers:
     """Class returns Milk production Outliers."""
