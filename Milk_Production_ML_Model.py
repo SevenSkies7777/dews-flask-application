@@ -1,11 +1,7 @@
 #importing libraries
 import pandas as pd
-import numpy as np
 import mysql.connector
-from scipy.stats import chi2
-from statsmodels.tsa.api import VAR
-from sklearn.metrics import mean_squared_error
-from datetime import timedelta
+
 conn = mysql.connector.connect(
         host='127.0.0.1',
         user='root',

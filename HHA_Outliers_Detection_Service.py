@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-from datetime import date
 from sqlalchemy import create_engine, text
 from Outliers_HHA import HHA_Outliers
 

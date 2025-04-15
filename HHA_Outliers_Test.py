@@ -1,7 +1,5 @@
-import pandas as pd
 import numpy as np
 from scipy import stats
-from scipy.stats import chi2
 
 def detect_outliers_crop_production(crop_df, id_column='CropId', 
                                value_columns=['AcresPlantedInLastFourWks', 'AcresHarvestedInLastFourWks', 
