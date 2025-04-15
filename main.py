@@ -60,7 +60,7 @@ def process_outliers_by_county():
 
       # Return a valid JSON response
       return jsonify(
-          {"message": "Rainfall data processing completed successfully"}), 200
+          {"message": "Outlier processing completed successfully"}), 200
 
     except Exception as e:
       return jsonify({"error": str(e)}), 500
