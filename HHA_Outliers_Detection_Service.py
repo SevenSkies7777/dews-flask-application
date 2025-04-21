@@ -18,19 +18,31 @@ def process_outliers(countyId, dataCollectionExerciseId):
 
     #Milk_Prod_Cons_Sold
     query = """
-        SELECT hh_livestock_milk_production_per_species.HhaQuestionnaireSessionId, 
-            hha_questionnaire_sessions.CountyId, hha_questionnaire_sessions.LivelihoodZoneId, hha_questionnaire_sessions.WardId,
-            hha_questionnaire_sessions.HouseHoldId, hha_questionnaire_sessions.SubCountyId, data_collection_exercise.DataCollectionExerciseId, 
-            data_collection_exercise.ExerciseStartDate, hh_livestock_milk_production_per_species.AnimalId, hh_livestock_milk_production_per_species.DailyQntyMilkedInLtrs,
-            hh_livestock_milk_production_per_species.DailyQntyConsumedInLtrs, hh_livestock_milk_production_per_species.DailyQntySoldInLtrs,
+        SELECT 
+            hh_livestock_milk_production_per_species.HhaQuestionnaireSessionId, 
+            hha_questionnaire_sessions.CountyId, 
+            hha_questionnaire_sessions.LivelihoodZoneId, 
+            hha_questionnaire_sessions.WardId,
+            hha_questionnaire_sessions.HouseHoldId, 
+            hha_questionnaire_sessions.SubCountyId, 
+            data_collection_exercise.DataCollectionExerciseId, 
+            data_collection_exercise.ExerciseStartDate, 
+            hh_livestock_milk_production_per_species.AnimalId, 
+            hh_livestock_milk_production_per_species.DailyQntyMilkedInLtrs,
+            hh_livestock_milk_production_per_species.DailyQntyConsumedInLtrs, 
+            hh_livestock_milk_production_per_species.DailyQntySoldInLtrs,
             hh_livestock_milk_production_per_species.PricePerLtr
-        FROM (hh_livestock_milk_production_per_species
-            LEFT JOIN hha_questionnaire_sessions ON (hh_livestock_milk_production_per_species.HhaQuestionnaireSessionId = hha_questionnaire_sessions.HhaQuestionnaireSessionId))
-            LEFT JOIN data_collection_exercise ON (hha_questionnaire_sessions.DataCollectionExerciseId = data_collection_exercise.DataCollectionExerciseId)
-        WHERE (hha_questionnaire_sessions.CountyId = %s 
-            AND data_collection_exercise.DataCollectionExerciseId = %s)
+        FROM hh_livestock_milk_production_per_species
+            LEFT JOIN hha_questionnaire_sessions 
+                ON hh_livestock_milk_production_per_species.HhaQuestionnaireSessionId = hha_questionnaire_sessions.HhaQuestionnaireSessionId
+            LEFT JOIN data_collection_exercise 
+                ON hha_questionnaire_sessions.DataCollectionExerciseId = data_collection_exercise.DataCollectionExerciseId
+        WHERE 
+            hha_questionnaire_sessions.CountyId = %s 
+            AND data_collection_exercise.DataCollectionExerciseId = %s
     """
-    input_df = pd.read_sql(query, engine)
+
+    input_df = pd.read_sql(query, engine, params=(countyId, dataCollectionExerciseId))
     input_df
 
     # Check if dataframe is empty before proceeding
@@ -214,7 +226,7 @@ def process_outliers(countyId, dataCollectionExerciseId):
         WHERE hhs.CountyId = %s 
             AND dce.DataCollectionExerciseId = %s;
     """
-    input_df = pd.read_sql(query, engine)
+    input_df = pd.read_sql(query, engine, params=(countyId, dataCollectionExerciseId))
     input_df
 
     # Check if dataframe is empty before proceeding
@@ -393,7 +405,7 @@ def process_outliers(countyId, dataCollectionExerciseId):
         WHERE hhs.CountyId = %s 
             AND dce.DataCollectionExerciseId = %s
     """
-    input_df = pd.read_sql(query, engine)
+    input_df = pd.read_sql(query, engine, params=(countyId, dataCollectionExerciseId))
     input_df
 
     # Check if dataframe is empty before proceeding
@@ -572,7 +584,7 @@ def process_outliers(countyId, dataCollectionExerciseId):
             AND dce.DataCollectionExerciseId = %s;
     """
 
-    input_df = pd.read_sql(query, engine)
+    input_df = pd.read_sql(query, engine, params=(countyId, dataCollectionExerciseId))
     input_df
 
     # Check if dataframe is empty before proceeding
@@ -755,7 +767,7 @@ def process_outliers(countyId, dataCollectionExerciseId):
         WHERE hhs.CountyId = %s 
             AND dce.DataCollectionExerciseId = %s;
     """
-    input_df = pd.read_sql(query, engine)
+    input_df = pd.read_sql(query, engine, params=(countyId, dataCollectionExerciseId))
     input_df
 
     # Check if dataframe is empty before proceeding
