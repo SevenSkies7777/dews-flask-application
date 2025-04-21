@@ -1,9 +1,5 @@
 import pandas as pd
 import numpy as np
-from scipy import stats
-from scipy.stats import chi2
-from statsmodels.tsa.api import VAR
-from datetime import date
 from sqlalchemy import create_engine, text
 from Outliers_HHA import detect_outliers
 
