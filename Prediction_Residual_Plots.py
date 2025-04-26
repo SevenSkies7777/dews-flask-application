@@ -7,17 +7,17 @@ from scipy.stats import norm
 
 # Create SQLAlchemy engine
 engine = create_engine(
-    'mysql+mysqlconnector://root:Romans17:48@127.0.0.1/livelihoodzones_2'
+    'mysql+mysqlconnector://root:*Database630803240081@127.0.0.1/livelihoodzones'
 )
 
-def process_milk_production_forecasts(countyId, Indicator):
+def process_residual_plots(countyId, Indicator):
 
     query = """
         SELECT Predictions.Date_Object, Avg(Predictions.Last_Actual_Value) as Last_Actual_Value,Avg(Predictions.Month1_Forecast) as Month1_Forecast,Avg(Predictions.Month2_Forecast) as Month2_Forecast,Avg(Predictions.Month3_Forecast) as Month3_Forecast
         FROM (Predictions LEFT JOIN wards ON (Predictions.Ward = wards.Shapefile_wardName))LEFT JOIN subcounties ON (subcounties.SubCountyId = wards.SubCountyId) WHERE (subcounties.CountyId = %s AND Last_Actual_Value is not null AND Indicator = %s)
         GROUP BY Predictions.Date_Object
     """
-    pooled_df = pd.read_sql(query, engine, params=(countyId, Indicator))
+    pooled_df = pd.read_sql(query, engine, params=(countyId, Indicator,))
 
     Forecast_df= pd.DataFrame({
         'Date_Object': pooled_df['Date_Object'],

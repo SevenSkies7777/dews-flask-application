@@ -6,6 +6,7 @@ from HHA_Outliers_Detection_Service import process_outliers
 from Rainfall_data_extraction import RainfallDataProcessor
 from flask import request
 from Milk_Production_Forecasting_Main import process_milk_production_forecasts
+from Prediction_Residual_Plots import process_residual_plots
 
 app = Flask(__name__)
 
@@ -78,6 +79,22 @@ def process_milk_predictions():
       # Return a valid JSON response
       return jsonify(
           {"message": "Milk predictions processing completed successfully"}), 200
+
+    except Exception as e:
+      return jsonify({"error": str(e)}), 500
+
+@app.route("/service-api/v1/predictions/process/residual-plots",
+             methods=["GET"])
+def process_residual_plots_api():
+    try:
+      county_id = request.args.get("countyId", type=int)
+      indicator = request.args.get("indicator", type=str)
+
+      process_residual_plots(county_id, indicator)
+
+      # Return a valid JSON response
+      return jsonify(
+          {"message": "Residual plots processing completed successfully"}), 200
 
     except Exception as e:
       return jsonify({"error": str(e)}), 500
