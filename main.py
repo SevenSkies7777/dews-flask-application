@@ -29,7 +29,7 @@ def process_rainfall_data():
 
     # Define file paths relative to the project root
     nc_file_path = Path("Pr.nc").resolve()
-    shapefile_path = Path("GADM/gadm41_KEN_3.shp").resolve()
+    shapefile_path = Path("new_livelihood_zones/new_livelihood_zones.shp").resolve()
 
     # Process rainfall data
     processor.processRainfallData(nc_file_path, shapefile_path,

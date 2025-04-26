@@ -44,7 +44,7 @@ class RainfallDataProcessor:
   def process_ward(self, precipitation_df, wards_gdf, ward_name):
     """Process rainfall data for a single ward."""
     try:
-      ward_data = wards_gdf[wards_gdf['NAME_3'] == ward_name].copy()
+      ward_data = wards_gdf[wards_gdf['WARD'] == ward_name].copy()
 
       geometry = [Point(xy) for xy in
                   zip(precipitation_df.X, precipitation_df.Y)]
@@ -57,8 +57,8 @@ class RainfallDataProcessor:
                               predicate="within")
       joined_data['T'] = pd.to_datetime(joined_data['T']).dt.date
 
-      selected_columns = ['Y', 'X', 'T', 'precipitation', 'COUNTRY', 'NAME_1',
-                          'NAME_2', 'NAME_3']
+      selected_columns = ['Y', 'X', 'T', 'precipitation', 'COUNTRY', 'COUNTY',
+                          'SUBCOUNTY', 'WARD']
       joined_data = joined_data[selected_columns]
 
       return joined_data
@@ -118,7 +118,7 @@ class RainfallDataProcessor:
 
       # Get ward names
       if specific_wards is None:
-        ward_names = wards_gdf['NAME_3'].unique().tolist()
+        ward_names = wards_gdf['WARD'].unique().tolist()
       else:
         ward_names = specific_wards
 
