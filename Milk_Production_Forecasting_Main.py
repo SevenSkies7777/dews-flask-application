@@ -1,23 +1,16 @@
 
 
-#Milk_production_Prediction
 import numpy as np
-#import mysql.connector
 import pandas as pd
-import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 from tensorflow.keras import backend as K
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.model_selection import train_test_split
-import matplotlib.pyplot as plt
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sqlalchemy import create_engine, text
 from Milk_Production_Forecast_Model import run_precip_forecast_pipeline
 from Milk_Production_Forecast_Model import MilkProductionForecaster
 
 
-def process_milk_production_forecasts():
+def process_milk_production_forecasts(county_id):
     # Create SQLAlchemy engine
     engine = create_engine(
         'mysql+mysqlconnector://root:*Database630803240081@127.0.0.1/livelihoodzones'
@@ -29,12 +22,12 @@ def process_milk_production_forecasts():
         FROM (hh_livestock_milk_production_per_species
             LEFT JOIN hha_questionnaire_sessions ON (hh_livestock_milk_production_per_species.HhaQuestionnaireSessionId = hha_questionnaire_sessions.HhaQuestionnaireSessionId))
             LEFT JOIN data_collection_exercise ON (hha_questionnaire_sessions.DataCollectionExerciseId = data_collection_exercise.DataCollectionExerciseId)LEFT JOIN wards ON (hha_questionnaire_sessions.WardId = wards.WardId)
-        WHERE (hha_questionnaire_sessions.CountyId = '46' )
+        WHERE (hha_questionnaire_sessions.CountyId = %s)
         GROUP BY hh_livestock_milk_production_per_species.HhaQuestionnaireSessionId, hha_questionnaire_sessions.CountyId, hha_questionnaire_sessions.LivelihoodZoneId,hha_questionnaire_sessions.WardId,hha_questionnaire_sessions.HouseHoldId, hha_questionnaire_sessions.SubCountyId,data_collection_exercise.ExerciseStartDate, wards.Shapefile_wardName
     """
 
     #db_df1 = pd.read_sql(query, conn)
-    db_df1 = pd.read_sql(query, engine)
+    db_df1 = pd.read_sql(query, engine, params=(county_id,))
     
     query = """
     SELECT 
@@ -46,11 +39,11 @@ def process_milk_production_forecasts():
         LTAs.Good_year
     FROM Seasons
     LEFT JOIN LTAs ON (Seasons.month = DATE_FORMAT(STR_TO_DATE(CONCAT(LEFT(LTAs.Month, 3), ' 1 2000'), '%b %d %Y'), '%M'))
-    WHERE (LTAs.CountyId = '46' AND LTAs.Indicator='Milk Production')
+    WHERE (LTAs.CountyId = %s AND LTAs.Indicator='Milk Production')
     """
 
     #Seasons = pd.read_sql(query, conn)
-    Seasons = pd.read_sql(query, engine)
+    Seasons = pd.read_sql(query, engine, params=(county_id,))
     
 
     db_df1['year'] = db_df1['ExerciseStartDate'].dt.year
@@ -75,11 +68,11 @@ def process_milk_production_forecasts():
     query = """
         SELECT *
         FROM Precipitation LEFT JOIN counties ON (counties.CountyName = Precipitation.NAME_1)
-        WHERE (counties.CountyId = '46')
+        WHERE (counties.CountyId = %s)
         """
 
     #precipitation_df = pd.read_sql(query, conn)
-    precipitation_df = pd.read_sql(query, engine)
+    precipitation_df = pd.read_sql(query, engine, params=(county_id,))
     
 
 
