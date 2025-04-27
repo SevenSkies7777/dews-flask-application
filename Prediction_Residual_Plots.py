@@ -3,6 +3,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sqlalchemy import create_engine, text
+from sqlalchemy.orm import sessionmaker
 from scipy.stats import norm
 import io
 import requests
@@ -177,3 +178,49 @@ def process_residual_plots(countyId, Indicator):
     print(f'🖼 one_month_img_id: {one_month_img_id}')
     print(f'🖼 two_month_img_id: {two_month_img_id}')
     print(f'🖼 three_month_img_id: {three_month_img_id}')
+
+    Session = sessionmaker(bind=engine)
+    session = Session() 
+
+    try:
+        # First, get the max date that meets your criteria
+        max_date_query = text("""
+            SELECT MAX(Predictions.Date_Object) 
+            FROM Predictions 
+            LEFT JOIN wards ON (Predictions.Ward = wards.Shapefile_wardName)
+            LEFT JOIN subcounties ON (subcounties.SubCountyId = wards.SubCountyId) 
+            WHERE subcounties.CountyId = :county_id AND Indicator = :indicator AND Predictions.Actual IS NOT NULL
+        """)
+        
+        # max_date_result = session.execute(max_date_query).scalar()
+        max_date_result = session.execute(max_date_query, {"county_id": countyId, "indicator": Indicator}).scalar()
+        
+        if max_date_result:
+            # Now perform the update on the Predictions table for rows with this date
+            update_query = text("""
+                UPDATE Predictions
+                SET `1MonthResidID` = :new_value,`2MonthResidID` = :new_value2,`3MonthResidID` = :new_value3
+                WHERE Date_Object = :max_date
+                AND Ward IN (
+                    SELECT wards.Shapefile_wardName
+                    FROM wards
+                    JOIN subcounties ON subcounties.SubCountyId = wards.SubCountyId
+                    WHERE subcounties.CountyId = :county_id AND Indicator = :indicator
+                )
+                AND Actual IS NOT NULL
+            """)
+            
+            # Execute the update
+            result = session.execute(update_query, {"new_value": {one_month_img_id},"new_value2": {two_month_img_id},"new_value3": {three_month_img_id}, "max_date": max_date_result})
+            session.commit()
+            
+            print(f"Updated {result.rowcount} records")
+        else:
+            print("No matching records found")
+            
+    except Exception as e:
+        session.rollback()
+        print(f"An error occurred: {e}")
+        
+    finally:
+        session.close()
