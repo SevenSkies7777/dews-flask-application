@@ -13,12 +13,13 @@ from Milk_Production_Forecast_Model import MilkProductionForecaster
 def process_milk_production_forecasts(county_id):
     # Create SQLAlchemy engine
     engine = create_engine(
-        'mysql+mysqlconnector://root:*Database630803240081@127.0.0.1/livelihoodzones'
+        # 'mysql+mysqlconnector://root:Romans17:48@127.0.0.1/livelihoodzones_5'
+         'mysql+mysqlconnector://root:*Database630803240081@127.0.0.1/livelihoodzones'    
     )
- 
+
     query = """
         SELECT hh_livestock_milk_production_per_species.HhaQuestionnaireSessionId as qid, hha_questionnaire_sessions.CountyId, hha_questionnaire_sessions.LivelihoodZoneId,hha_questionnaire_sessions.WardId,hha_questionnaire_sessions.HouseHoldId, hha_questionnaire_sessions.SubCountyId,
-                data_collection_exercise.ExerciseStartDate, Sum(hh_livestock_milk_production_per_species.DailyQntyMilkedInLtrs) as amountmilked,Sum(hh_livestock_milk_production_per_species.DailyQntyConsumedInLtrs) as amountconsumed,Sum(hh_livestock_milk_production_per_species.DailyQntySoldInLtrs) as amountsold, Sum(hh_livestock_milk_production_per_species.PricePerLtr) as PricePerLtr,wards.Shapefile_wardName
+                DATE(data_collection_exercise.ExerciseStartDate) as ExerciseStartDate, Sum(hh_livestock_milk_production_per_species.DailyQntyMilkedInLtrs) as amountmilked,Sum(hh_livestock_milk_production_per_species.DailyQntyConsumedInLtrs) as amountconsumed,Sum(hh_livestock_milk_production_per_species.DailyQntySoldInLtrs) as amountsold, Sum(hh_livestock_milk_production_per_species.PricePerLtr) as PricePerLtr,wards.WardName as Shapefile_wardName
         FROM (hh_livestock_milk_production_per_species
             LEFT JOIN hha_questionnaire_sessions ON (hh_livestock_milk_production_per_species.HhaQuestionnaireSessionId = hha_questionnaire_sessions.HhaQuestionnaireSessionId))
             LEFT JOIN data_collection_exercise ON (hha_questionnaire_sessions.DataCollectionExerciseId = data_collection_exercise.DataCollectionExerciseId)LEFT JOIN wards ON (hha_questionnaire_sessions.WardId = wards.WardId)
@@ -28,7 +29,28 @@ def process_milk_production_forecasts(county_id):
 
     #db_df1 = pd.read_sql(query, conn)
     db_df1 = pd.read_sql(query, engine, params=(county_id,))
-    
+
+    query = """
+        SELECT kia_questionnaire_sessions.KiaQuestionnaireSessionId as qid, kia_questionnaire_sessions.CountyId, kia_questionnaire_sessions.WardId, kia_questionnaire_sessions.SubCountyId,
+                DATE(data_collection_exercise.ExerciseStartDate) as ExerciseStartDate, avg(kia_water_resources.DistInKmsToWaterSourceForHouseholds) AS GrazingDist, kia_water_resources.KiaQuestionnaireSessionId,data_collection_exercise.DataCollectionExerciseId 
+        FROM (kia_water_resources
+            LEFT JOIN kia_questionnaire_sessions ON (kia_water_resources.KiaQuestionnaireSessionId = kia_questionnaire_sessions.KiaQuestionnaireSessionId))
+            LEFT JOIN data_collection_exercise ON (kia_questionnaire_sessions.DataCollectionExerciseId = data_collection_exercise.DataCollectionExerciseId)LEFT JOIN wards ON (kia_questionnaire_sessions.WardId = wards.WardId) 
+        WHERE (kia_questionnaire_sessions.CountyId = %s)
+        GROUP BY kia_questionnaire_sessions.CountyId, kia_questionnaire_sessions.WardId, kia_questionnaire_sessions.SubCountyId,data_collection_exercise.ExerciseStartDate, wards.Shapefile_wardName,kia_water_resources.KiaQuestionnaireSessionId
+    """
+
+    #db_df1 = pd.read_sql(query, conn)
+    db_df2 = pd.read_sql(query, engine, params=(county_id,))
+
+    db_df2=db_df2.groupby(['WardId','ExerciseStartDate'])[['GrazingDist']].mean().reset_index()
+    #db_df2
+
+    db_df3= pd.merge(db_df1, db_df2, left_on=['WardId', 'ExerciseStartDate'], right_on=['WardId', 'ExerciseStartDate'], how='left')
+    #db_df3
+
+    db_df3['ExerciseStartDate'] = pd.to_datetime(db_df3['ExerciseStartDate'])    
+
     query = """
     SELECT 
         Seasons.season,
@@ -44,13 +66,13 @@ def process_milk_production_forecasts(county_id):
 
     #Seasons = pd.read_sql(query, conn)
     Seasons = pd.read_sql(query, engine, params=(county_id,))
-    
 
-    db_df1['year'] = db_df1['ExerciseStartDate'].dt.year
-    db_df1['month'] = db_df1['ExerciseStartDate'].dt.strftime('%B') 
-    db_df1['month_num'] = db_df1['ExerciseStartDate'].dt.month
 
-    db_df = db_df1.merge(Seasons, left_on=['month'], right_on=['Month'], how='right')
+    db_df3['year'] = db_df3['ExerciseStartDate'].dt.year
+    db_df3['month'] = db_df3['ExerciseStartDate'].dt.strftime('%B') 
+    db_df3['month_num'] = db_df3['ExerciseStartDate'].dt.month
+
+    db_df = db_df3.merge(Seasons, left_on=['month'], right_on=['Month'], how='right')
 
     #conn.close()
     #db_df
@@ -58,8 +80,8 @@ def process_milk_production_forecasts(county_id):
     '''conn = mysql.connector.connect(
             host='127.0.0.1',
             user='root',
-            password='Romans17:48',
-            database='livelihoodzones'
+            password='*Database630803240081',
+            database='livelihoodzones_5'
         )
 
     cursor = conn.cursor()
@@ -73,7 +95,7 @@ def process_milk_production_forecasts(county_id):
 
     #precipitation_df = pd.read_sql(query, conn)
     precipitation_df = pd.read_sql(query, engine, params=(county_id,))
-    
+
 
 
     prep_df0 = precipitation_df.groupby(['NAME_3','T'])['precipitation'].sum()
