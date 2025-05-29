@@ -13,7 +13,7 @@ from Milk_Production_Forecast_Model import MilkProductionForecaster
 def process_milk_production_forecasts(county_id):
     # Create SQLAlchemy engine
     engine = create_engine(
-        # 'mysql+mysqlconnector://root:Romans17:48@127.0.0.1/livelihoodzones_5'
+        # 'mysql+mysqlconnector://root:Romans17:48@127.0.0.1/livelihoodzones'
          'mysql+mysqlconnector://root:*Database630803240081@127.0.0.1/livelihoodzones'    
     )
 
@@ -81,7 +81,7 @@ def process_milk_production_forecasts(county_id):
             host='127.0.0.1',
             user='root',
             password='*Database630803240081',
-            database='livelihoodzones_5'
+            database='livelihoodzones'
         )
 
     cursor = conn.cursor()
@@ -341,17 +341,18 @@ def process_milk_production_forecasts(county_id):
                 ward = row['Ward']
                 month = row['Month']
                 year = row['Year']
-                row_key = (ward, month, year)
+                indicator = row['Indicator']
+                row_key = (ward, month, year, indicator)                
                 is_special = row['Last_Actual_Value'] is not None
 
                 if is_special and row_key not in existing_special_rows:
                     try:
                         delete_query = text("""
                             DELETE FROM Predictions 
-                            WHERE Ward = :ward AND Month = :month AND Year = :year
+                            WHERE Ward = :ward AND Month = :month AND Year = :year AND Indicator = :indicator
                         """)
                         with engine.begin() as conn:
-                            conn.execute(delete_query, {"ward": ward, "month": month, "year": year})
+                            conn.execute(delete_query, {"ward": ward, "month": month, "year": year, "indicator": indicator})
                         print(f"Cleared existing rows for new special row {row_key}")
                     except Exception as e:
                         print(f"Error clearing rows for new special row {row_key}: {e}")
@@ -363,10 +364,10 @@ def process_milk_production_forecasts(county_id):
                     try:
                         delete_query = text("""
                             DELETE FROM Predictions 
-                            WHERE Ward = :ward AND Month = :month AND Year = :year
+                            WHERE Ward = :ward AND Month = :month AND Year = :year AND Indicator = :indicator
                         """)
                         with engine.begin() as conn:
-                            conn.execute(delete_query, {"ward": ward, "month": month, "year": year})
+                            conn.execute(delete_query, {"ward": ward, "month": month, "year": year, "indicator": indicator})
                     except Exception as e:
                         print(f"Error clearing rows for non-special row {row_key}: {e}")
 
@@ -377,10 +378,10 @@ def process_milk_production_forecasts(county_id):
                     try:
                         delete_query = text("""
                             DELETE FROM Predictions 
-                            WHERE Ward = :ward AND Month = :month AND Year = :year
+                            WHERE Ward = :ward AND Month = :month AND Year = :year AND Indicator = :indicator
                         """)
                         with engine.begin() as conn:
-                            conn.execute(delete_query, {"ward": ward, "month": month, "year": year})
+                            conn.execute(delete_query, {"ward": ward, "month": month, "year": year, "indicator": indicator})
                         print(f"Deleted existing special row {row_key} for update")
                     except Exception as e:
                         print(f"Error deleting existing special row {row_key} for update: {e}")
