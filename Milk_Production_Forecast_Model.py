@@ -513,7 +513,7 @@ def MilkProductionForecaster(data_numeric, features, unique_ward1="Shapefile_war
     print("Training ensemble components...")
     
     # =============================================================================
-    # COMPONENT 1: SIMPLIFIED LSTM MODEL (Original Approach + GrazingDist)
+    # COMPONENT 1: SIMPLIFIED LSTM MODEL
     # =============================================================================
     
     def train_lstm_model():
@@ -523,26 +523,26 @@ def MilkProductionForecaster(data_numeric, features, unique_ward1="Shapefile_war
         """
         print("Training LSTM model with simplified approach (original consistency + GrazingDist)...")
         
-        # Use original simple data preparation approach (no complex filtering)
+    
         lstm_data = data[features].copy()
         
-        # Simple feature validation - no complex filtering (like original)
+        # Simple feature validation
         print(f"Using features as provided: {features}")
         if 'GrazingDist' in features:
             print(f"GrazingDist range: {data['GrazingDist'].min():.2f} to {data['GrazingDist'].max():.2f}")
             print(f"GrazingDist stats: mean={data['GrazingDist'].mean():.2f}, std={data['GrazingDist'].std():.2f}")
         
-        # Original scaling approach (simple)
+        # Scaling approach
         lstm_scaler = MinMaxScaler()
         lstm_data_scaled = lstm_scaler.fit_transform(lstm_data)
         
-        # Original feature indices approach
+        # Feature indices 
         feature_indices = {feature: idx for idx, feature in enumerate(features)}
         target_idx = feature_indices[target_var]
         
         print(f"LSTM feature indices: {feature_indices}")
         
-        # Original sequence creation (matching preprocess_data function)
+        # Sequence creation
         def create_sequences(data, seq_len, target_idx):
             X, y = [], []
             for i in range(len(data) - seq_len):
@@ -553,7 +553,7 @@ def MilkProductionForecaster(data_numeric, features, unique_ward1="Shapefile_war
         X, y = create_sequences(lstm_data_scaled, seq_length, target_idx)
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, shuffle=False)
         
-        # Identical model architecture (same as original)
+        # Model architecture 
         lstm_model = Sequential([
             LSTM(128, return_sequences=True, input_shape=(seq_length, X.shape[2])),
             Dropout(0.2),
@@ -565,7 +565,7 @@ def MilkProductionForecaster(data_numeric, features, unique_ward1="Shapefile_war
         
         lstm_model.compile(optimizer='adam', loss='mean_squared_error')
         
-        # Identical training process (same as original)
+        # Training process 
         early_stopping = tf.keras.callbacks.EarlyStopping(
             monitor='val_loss', patience=10, mode='min', restore_best_weights=True
         )
@@ -579,7 +579,7 @@ def MilkProductionForecaster(data_numeric, features, unique_ward1="Shapefile_war
             verbose=0
         )
         
-        # Identical Monte Carlo predictions (same as original)
+        # Monte Carlo predictions 
         def monte_carlo_predictions(model, X_input, n_simulations):
             @tf.function
             def f_model_mc(X_input, training=True):
@@ -592,9 +592,9 @@ def MilkProductionForecaster(data_numeric, features, unique_ward1="Shapefile_war
         # Evaluate LSTM
         y_pred_mean, y_pred_std = monte_carlo_predictions(lstm_model, X_test, n_simulations)
         
-        # Original simple rescaling approach (same as original)
+        # Simple rescaling
         def rescale_predictions(pred_mean, pred_std, y_true):
-            # Simple reshaping like original
+            # Reshaping
             dummy_pred = np.zeros((len(pred_mean), len(features)))
             dummy_pred[:, target_idx] = pred_mean.flatten()
             pred_mean_rescaled = lstm_scaler.inverse_transform(dummy_pred)[:, target_idx]
@@ -627,7 +627,7 @@ def MilkProductionForecaster(data_numeric, features, unique_ward1="Shapefile_war
         }
     
     # =============================================================================
-    # COMPONENT 2: VAR MODEL (Enhanced with GrazingDist support + SIGNIFICANCE FILTERING)
+    # COMPONENT 2: VAR MODEL
     # =============================================================================
     
     def train_var_model():
@@ -641,10 +641,10 @@ def MilkProductionForecaster(data_numeric, features, unique_ward1="Shapefile_war
             return None
         
         try:
-            # Select relevant variables for VAR (continuous variables only) - include GrazingDist
+            # Select relevant variables for VAR (continuous variables only)
             var_features = [target_var, 'precipitation', 'Season_Index']
             
-            # Add GrazingDist if available (RETAINED FEATURE)
+
             if 'GrazingDist' in data.columns:
                 var_features.append('GrazingDist')
                 print("Added GrazingDist to VAR features")
@@ -1184,7 +1184,7 @@ def MilkProductionForecaster(data_numeric, features, unique_ward1="Shapefile_war
             future_gaps = []
             future_grazing_dist = []
             
-            # Get initial time from last sequence (original approach)
+            # Get initial time from last sequence 
             try:
                 last_row_unscaled = lstm_results['scaler'].inverse_transform(curr_sequence[-1].reshape(1,-1))[0]
                 curr_month = int(last_row_unscaled[lstm_results['feature_indices']['month_num']])
@@ -1193,7 +1193,7 @@ def MilkProductionForecaster(data_numeric, features, unique_ward1="Shapefile_war
                 curr_month = int(data['month_num'].iloc[-1])
                 curr_year = int(data['year'].iloc[-1])
             
-            # Handle precipitation forecasts (original approach)
+            # Handle precipitation forecasts 
             precip_forecast = {}
             if external_precip_forecasts is not None:
                 if isinstance(external_precip_forecasts, pd.DataFrame):
@@ -1203,7 +1203,7 @@ def MilkProductionForecaster(data_numeric, features, unique_ward1="Shapefile_war
                     precip_forecast = external_precip_forecasts.copy()
             
             for step in range(n_steps):
-                # Make prediction using Monte Carlo (original approach)
+                # Make prediction using Monte Carlo 
                 try:
                     pred_mean, pred_std = lstm_results['monte_carlo_fn'](
                         lstm_results['model'], 
@@ -1224,13 +1224,13 @@ def MilkProductionForecaster(data_numeric, features, unique_ward1="Shapefile_war
                         lstm_predictions.append(0.0)
                         lstm_uncertainties.append(0.0)
                 
-                # Update time (original approach)
+                # Update time 
                 curr_month += 1
                 if curr_month > 12:
                     curr_month = 1
                     curr_year += 1
                 
-                # Get season (original approach)
+                # Get season 
                 curr_season = data_month_to_season.get(curr_month, 0.0)
                 
                 # Get GrazingDist - use seasonal average if available (RETAINED FEATURE)
@@ -1245,7 +1245,7 @@ def MilkProductionForecaster(data_numeric, features, unique_ward1="Shapefile_war
                 future_gaps.append(1)
                 future_grazing_dist.append(curr_grazing_dist)
                 
-                # Handle precipitation (original approach)
+                # Handle precipitation 
                 future_key = (curr_year, curr_month)
                 if future_key in precip_forecast:
                     curr_forecast_precip = precip_forecast[future_key]
@@ -1256,7 +1256,7 @@ def MilkProductionForecaster(data_numeric, features, unique_ward1="Shapefile_war
                     else:
                         curr_forecast_precip = 0.0
                 
-                # Get historical precipitation (original approach)
+                # Get historical precipitation 
                 month_data = data[data['month_num'] == curr_month]
                 if len(month_data) > 0:
                     curr_precip = month_data['precipitation'].mean()
@@ -1270,7 +1270,7 @@ def MilkProductionForecaster(data_numeric, features, unique_ward1="Shapefile_war
                 try:
                     temp_row = np.zeros((1, len(lstm_results['numeric_features'])))
                     
-                    # Set all features that exist in the feature indices (original approach)
+                    # Set all features that exist in the feature indices 
                     if 'year' in lstm_results['feature_indices']:
                         temp_row[0, lstm_results['feature_indices']['year']] = curr_year
                     if 'month_num' in lstm_results['feature_indices']:
@@ -1286,7 +1286,7 @@ def MilkProductionForecaster(data_numeric, features, unique_ward1="Shapefile_war
                     if 'GrazingDist' in lstm_results['feature_indices']:  # RETAINED FEATURE
                         temp_row[0, lstm_results['feature_indices']['GrazingDist']] = curr_grazing_dist
                     
-                    # Scale and update sequence (original approach)
+                    # Scale and update sequence 
                     temp_row_scaled = lstm_results['scaler'].transform(temp_row)[0]
                     pred_full = np.zeros((1, len(lstm_results['numeric_features'])))
                     for j in range(len(lstm_results['numeric_features'])):
@@ -1299,12 +1299,12 @@ def MilkProductionForecaster(data_numeric, features, unique_ward1="Shapefile_war
                     
                 except Exception as e:
                     print(f"Sequence update error at step {step}: {e}")
-                    # Simple fallback (original approach)
+                    # Simple fallback 
                     new_row_scaled = curr_sequence[-1].copy()
                     new_row_scaled[lstm_results['feature_indices'][target_var]] = float(pred_mean.flatten()[0])
                     curr_sequence = np.vstack([curr_sequence[1:], new_row_scaled.reshape(1, -1)])
             
-            # Rescale predictions (original approach)
+            # Rescale predictions 
             future_pred = np.array(lstm_predictions).reshape(-1, 1)
             future_std = np.array(lstm_uncertainties).reshape(-1, 1)
             
