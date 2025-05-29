@@ -343,6 +343,8 @@ def process_milk_production_forecasts(county_id):
                 ward = row['Ward']
                 month = row['Month']
                 year = row['Year']
+                indicator = row['Indicator']
+                row_key = (ward, month, year, indicator)
                 row_key = (ward, month, year)
                 is_special = row['Last_Actual_Value'] is not None
 
@@ -350,7 +352,7 @@ def process_milk_production_forecasts(county_id):
                     try:
                         delete_query = text("""
                             DELETE FROM Predictions 
-                            WHERE Ward = :ward AND Month = :month AND Year = :year
+                            WHERE Ward = :ward AND Month = :month AND Year = :year AND Indicator = :indicator
                         """)
                         with engine.begin() as conn:
                             conn.execute(delete_query, {"ward": ward, "month": month, "year": year})
@@ -365,7 +367,7 @@ def process_milk_production_forecasts(county_id):
                     try:
                         delete_query = text("""
                             DELETE FROM Predictions 
-                            WHERE Ward = :ward AND Month = :month AND Year = :year
+                            WHERE Ward = :ward AND Month = :month AND Year = :year AND Indicator = :indicator
                         """)
                         with engine.begin() as conn:
                             conn.execute(delete_query, {"ward": ward, "month": month, "year": year})
@@ -379,7 +381,7 @@ def process_milk_production_forecasts(county_id):
                     try:
                         delete_query = text("""
                             DELETE FROM Predictions 
-                            WHERE Ward = :ward AND Month = :month AND Year = :year
+                            WHERE Ward = :ward AND Month = :month AND Year = :year AND Indicator = :indicator
                         """)
                         with engine.begin() as conn:
                             conn.execute(delete_query, {"ward": ward, "month": month, "year": year})
