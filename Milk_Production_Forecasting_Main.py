@@ -119,6 +119,9 @@ def process_milk_production_forecasts(county_id):
         prep_df = prep_df0[prep_df0["NAME_3"] == NAME_3]
         prep_df = prep_df.reset_index()    
         prep_df=prep_df[['season','Season_Index','Month','NAME_3','T','precipitation','year','month_name','month_num']]
+        if prep_df.empty:
+            print(f"No precipitation data found for {NAME_3}. Skipping...")
+            continue                
         unique_ward = prep_df["NAME_3"].unique()
         #prep_df1=prep_df
         #prep_df['T'] = pd.to_datetime(prep_df['T'])
