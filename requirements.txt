@@ -9,7 +9,8 @@ requests==2.31.0
 
 # Optional: Only if you are using geospatial or progress bars later
 geopandas==0.12.2
-shapely==2.0.1
+fiona==1.8.21
+shapely==1.8.5.post1
 xarray==2023.3.0
 tqdm==4.65.0
 
