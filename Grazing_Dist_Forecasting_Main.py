@@ -98,7 +98,7 @@ def process_milk_production_forecasts(county_id):
 
 
 
-    prep_df0 = precipitation_df.groupby(['NAME_3','T'])['precipitation'].sum()
+    prep_df0 = precipitation_df.groupby(['WARD','T'])['precipitation'].sum()
     prep_df0 = prep_df0.reset_index()
 
     #conn.close()
@@ -110,19 +110,19 @@ def process_milk_production_forecasts(county_id):
     prep_df0 = Seasons.merge(prep_df0, left_on=['Month'], right_on=['month_name'], how='right')
     #prep_df0
     #Wusi/Kishamba Chala
-    #unique_wards = prep_df0["NAME_3"].unique()
+    #unique_wards = prep_df0["WARD"].unique()
     unique_wards = db_df1[db_df1['Shapefile_wardName'].notna()]
     unique_wards = unique_wards['Shapefile_wardName'].unique()
     #unique_wards = ['Chala']
-    for NAME_3 in unique_wards:
-        print(f"Processing {NAME_3}...")
-        prep_df = prep_df0[prep_df0["NAME_3"] == NAME_3]
+    for WARD in unique_wards:
+        print(f"Processing {WARD}...")
+        prep_df = prep_df0[prep_df0["WARD"] == WARD]
         prep_df = prep_df.reset_index()    
-        prep_df=prep_df[['season','Season_Index','Month','NAME_3','T','precipitation','year','month_name','month_num']]
+        prep_df=prep_df[['season','Season_Index','Month','WARD','T','precipitation','year','month_name','month_num']]
         if prep_df.empty:
-            print(f"No precipitation data found for {NAME_3}. Skipping...")
+            print(f"No precipitation data found for {WARD}. Skipping...")
             continue         
-        unique_ward = prep_df["NAME_3"].unique()
+        unique_ward = prep_df["WARD"].unique()
         #prep_df1=prep_df
         #prep_df['T'] = pd.to_datetime(prep_df['T'])
         #pd.to_datetime(prep_df0['T'], errors='coerce')
@@ -154,7 +154,7 @@ def process_milk_production_forecasts(county_id):
 
         forecast_df1=forecast_df[['Month','Year','Date_Object','Forecasted Precipitation','Forecast Uncertainty (Std Dev)']]
         prep_df1 = forecast_df1.merge(prep_df, left_on=['Month','Year','Date_Object'], right_on=['month_num','year','T'], how='right')
-        prep_df2=prep_df1[['year','Forecasted Precipitation','NAME_3','T','precipitation','month_name','month_num']]
+        prep_df2=prep_df1[['year','Forecasted Precipitation','WARD','T','precipitation','month_name','month_num']]
         precipitation_forecasts_df=prep_df2
         db_df=db_df[['WardId','HouseHoldId','Shapefile_wardName', 'month', 'year', 'season','Season_Index','amountmilked','GrazingDist','Bad_year','Good_year']]
 
@@ -242,7 +242,7 @@ def process_milk_production_forecasts(county_id):
             # db_df_clean1=db_df_clean.groupby(['Shapefile_wardName', 'month', 'year', 'season','Season_Index','Bad_year','Good_year'])[['amountmilked']].mean().reset_index()
         db_df_clean1=db_df_clean.groupby(['Shapefile_wardName', 'month', 'year', 'season','Season_Index','Bad_year','Good_year'])[['amountmilked','GrazingDist']].mean().reset_index()
 
-        joined_data2 = db_df_clean1.merge(prep_df2, left_on=['Shapefile_wardName', 'year', 'month'], right_on=['NAME_3', 'year', 'month_name'], how='right')
+        joined_data2 = db_df_clean1.merge(prep_df2, left_on=['Shapefile_wardName', 'year', 'month'], right_on=['WARD', 'year', 'month_name'], how='right')
 
         joined_data3=joined_data2[(joined_data2['Shapefile_wardName']==unique_ward1)&(joined_data2['year']>2016)]
 
