@@ -89,7 +89,7 @@ def process_milk_production_forecasts(county_id):
 
     query = """
         SELECT *
-        FROM Precipitation LEFT JOIN counties ON (counties.CountyName = Precipitation.NAME_1)
+        FROM Precipitation LEFT JOIN counties ON (counties.CountyName = Precipitation.COUNTY)
         WHERE (counties.CountyId = %s)
         """
 
