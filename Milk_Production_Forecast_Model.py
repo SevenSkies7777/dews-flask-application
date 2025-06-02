@@ -34,7 +34,7 @@ def run_precip_forecast_pipeline(prep_df, seq_length=48, forecast_start_year=201
     """
     # Process data
     data = prep_df.copy()
-    data = data.sort_values(['year', 'month_num'])
+    data = data.sort_values(['year', 'month_num']).reset_index(drop=True)
     data['month_year'] = data['year'] * 12 + data['month_num']
     data['months_gap'] = data['month_year'].diff().fillna(1).astype(int)
     data['date'] = pd.to_datetime(data['year'].astype(str) + '-' + 
@@ -49,20 +49,44 @@ def run_precip_forecast_pipeline(prep_df, seq_length=48, forecast_start_year=201
     scaler = MinMaxScaler()
     data_scaled = scaler.fit_transform(data_for_model)
     
-    # Create sequences
-    def create_sequences(data, target_idx, seq_len):
-        X, y = [], []
+    # Create sequences with tracking indices - MODIFIED FOR FIX 3
+    def create_all_sequences(data, target_idx, seq_len):
+        """Create sequences and track which data points they predict"""
+        X, y, indices = [], [], []
         for i in range(len(data) - seq_len):
             X.append(data[i:i + seq_len, :])
             y.append(data[i + seq_len, target_idx])
-        return np.array(X), np.array(y)
+            indices.append(i + seq_len)  # Track which data point this predicts
+        return np.array(X), np.array(y), indices
     
-    X, y = create_sequences(data_scaled, feature_indices['precip'], seq_length)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, shuffle=False)
+    # Create all possible sequences (including recent data)
+    X_all, y_all, all_indices = create_all_sequences(data_scaled, feature_indices['precip'], seq_length)
+    
+    print("=== SEQUENCE CREATION DEBUG ===")
+    print(f"Original data length: {len(data_scaled)}")
+    print(f"Sequences created: {len(X_all)}")
+    print(f"Data points lost to sequencing: {len(data_scaled) - len(X_all)}")
+    print(f"Original data date range: {data['date'].min()} to {data['date'].max()}")
+    if len(all_indices) > 0:
+        last_sequence_date = data.iloc[all_indices[-1]]['date']
+        print(f"Last sequence corresponds to date: {last_sequence_date}")
+    
+    # Split for training
+    train_size = int(len(X_all) * (1 - test_size))
+    X_train = X_all[:train_size]
+    y_train = y_all[:train_size]
+    X_test = X_all[train_size:]
+    y_test = y_all[train_size:]
+    test_indices = all_indices[train_size:]
+    
+    print(f"Training sequences: {len(X_train)}")
+    print(f"Test sequences: {len(X_test)}")
+    if len(test_indices) > 0:
+        print(f"Test date range: {data.iloc[test_indices[0]]['date']} to {data.iloc[test_indices[-1]]['date']}")
     
     # Build and train model
     model = Sequential([
-        LSTM(64, return_sequences=True, input_shape=(seq_length, X.shape[2])),
+        LSTM(64, return_sequences=True, input_shape=(seq_length, X_all.shape[2])),
         Dropout(0.2),
         LSTM(64, return_sequences=False),
         Dropout(0.2),
@@ -94,8 +118,8 @@ def run_precip_forecast_pipeline(prep_df, seq_length=48, forecast_start_year=201
         preds = np.array([f_model_mc(X_input, training=True).numpy() for _ in range(n_sim)])
         return preds.mean(axis=0), preds.std(axis=0)
     
-    # Test predictions
-    y_pred_mean, y_pred_std = monte_carlo_predictions(model, X_test, n_simulations)
+    # Make predictions on ALL data (not just test set) - FIX 3 IMPLEMENTATION
+    y_pred_all_mean, y_pred_all_std = monte_carlo_predictions(model, X_all, n_simulations)
     
     # Rescale predictions
     def rescale_predictions(predictions, std_devs, y_true, target_idx, scaler, n_features):
@@ -116,39 +140,74 @@ def run_precip_forecast_pipeline(prep_df, seq_length=48, forecast_start_year=201
         
         return predictions_rescaled, std_devs_rescaled
     
-    # Rescale test predictions
-    y_pred_mean_rescaled, y_pred_std_rescaled, y_test_rescaled = rescale_predictions(
-        y_pred_mean, y_pred_std, y_test, feature_indices['precip'], scaler, X.shape[2]
+    # Rescale ALL predictions
+    y_pred_all_rescaled, y_pred_std_all_rescaled, y_all_rescaled = rescale_predictions(
+        y_pred_all_mean, y_pred_all_std, y_all, feature_indices['precip'], scaler, X_all.shape[2]
     )
+    
+    # Create comprehensive predictions DataFrame - FIX 3 MAIN CHANGE
+    all_predictions_df = pd.DataFrame({
+        "Date": [data.iloc[idx]['date'] for idx in all_indices],
+        "Year": [data.iloc[idx]['year'] for idx in all_indices],
+        "Month": [data.iloc[idx]['month_num'] for idx in all_indices],
+        "Actual": y_all_rescaled,
+        "Predicted": y_pred_all_rescaled.flatten(),
+        "Uncertainty": y_pred_std_all_rescaled.flatten(),
+        "Data_Type": ["Train" if i < train_size else "Test" for i in range(len(all_indices))]
+    })
+    
+    # Add confidence intervals
+    all_predictions_df['Lower_CI'] = (all_predictions_df['Predicted'] - 
+                                     1.96 * all_predictions_df['Uncertainty'])
+    all_predictions_df['Upper_CI'] = (all_predictions_df['Predicted'] + 
+                                     1.96 * all_predictions_df['Uncertainty'])
+    
+    print("All predictions including recent data:")
+    print(all_predictions_df.tail(10))
+    print(f"Predictions date range: {all_predictions_df['Date'].min()} to {all_predictions_df['Date'].max()}")
+    
+    # Extract test predictions for backward compatibility
+    test_predictions_df = all_predictions_df[all_predictions_df['Data_Type'] == 'Test'].copy()
     
     # Calculate test metrics
     test_metrics = {}
-    valid_indices = ~np.isnan(y_test_rescaled) & ~np.isnan(y_pred_mean_rescaled)
-    
-    if sum(valid_indices) > 0:
-        y_test_valid = y_test_rescaled[valid_indices]
-        y_pred_valid = y_pred_mean_rescaled[valid_indices]
-        y_std_valid = y_pred_std_rescaled[valid_indices]
+    if len(test_predictions_df) > 0:
+        valid_indices = ~np.isnan(test_predictions_df['Actual']) & ~np.isnan(test_predictions_df['Predicted'])
         
-        test_mse = mean_squared_error(y_test_valid, y_pred_valid)
-        test_rmse = np.sqrt(test_mse)
-        test_mae = mean_absolute_error(y_test_valid, y_pred_valid)
-        test_r2 = r2_score(y_test_valid, y_pred_valid)
-        
-        # CI coverage
-        lower_bound = y_pred_valid - 1.96 * y_std_valid
-        upper_bound = y_pred_valid + 1.96 * y_std_valid
-        within_ci = ((y_test_valid >= lower_bound) & (y_test_valid <= upper_bound))
-        ci_coverage = within_ci.mean() * 100
-        
-        test_metrics = {
-            'rmse': test_rmse,
-            'mae': test_mae,
-            'r2': test_r2,
-            'ci_coverage': ci_coverage,
-            'n_valid': sum(valid_indices),
-            'n_total': len(y_test_rescaled)
-        }
+        if sum(valid_indices) > 0:
+            y_test_valid = test_predictions_df.loc[valid_indices, 'Actual']
+            y_pred_valid = test_predictions_df.loc[valid_indices, 'Predicted']
+            y_std_valid = test_predictions_df.loc[valid_indices, 'Uncertainty']
+            
+            test_mse = mean_squared_error(y_test_valid, y_pred_valid)
+            test_rmse = np.sqrt(test_mse)
+            test_mae = mean_absolute_error(y_test_valid, y_pred_valid)
+            test_r2 = r2_score(y_test_valid, y_pred_valid)
+            
+            # CI coverage
+            lower_bound = y_pred_valid - 1.96 * y_std_valid
+            upper_bound = y_pred_valid + 1.96 * y_std_valid
+            within_ci = ((y_test_valid >= lower_bound) & (y_test_valid <= upper_bound))
+            ci_coverage = within_ci.mean() * 100
+            
+            test_metrics = {
+                'rmse': test_rmse,
+                'mae': test_mae,
+                'r2': test_r2,
+                'ci_coverage': ci_coverage,
+                'n_valid': sum(valid_indices),
+                'n_total': len(test_predictions_df)
+            }
+        else:
+            test_metrics = {
+                'rmse': None,
+                'mae': None,
+                'r2': None,
+                'ci_coverage': None,
+                'n_valid': 0,
+                'n_total': len(test_predictions_df)
+            }
+            print("Warning: No valid test data points for metric calculation.")
     else:
         test_metrics = {
             'rmse': None,
@@ -156,35 +215,27 @@ def run_precip_forecast_pipeline(prep_df, seq_length=48, forecast_start_year=201
             'r2': None,
             'ci_coverage': None,
             'n_valid': 0,
-            'n_total': len(y_test_rescaled)
+            'n_total': 0
         }
-        print("Warning: No valid test data points for metric calculation.")
+        print("Warning: No test data available.")
     
-    # Create test predictions DataFrame
-    start_idx = len(data_for_model) - len(y_test) - seq_length
-    end_idx = len(data_for_model) - seq_length
-    test_indices = list(range(start_idx, end_idx))
-    
-    # Handle edge case where indices are out of bounds
-    if start_idx < 0 or end_idx > len(data):
-        test_predictions_df = pd.DataFrame()
-    else:
-        test_predictions_df = pd.DataFrame({
-            "Month": data.iloc[test_indices]["month_num"].values,
-            "Year": data.iloc[test_indices]["year"].values,
-            "Date": [f"{y}-{m:02d}" for y, m in zip(data.iloc[test_indices]["year"], data.iloc[test_indices]["month_num"])],
-            "Actual": y_test_rescaled,
-            "Predicted": y_pred_mean_rescaled,
-            "Uncertainty": y_pred_std_rescaled,
-            "Lower_CI": lower_bound if 'lower_bound' in locals() else None,
-            "Upper_CI": upper_bound if 'upper_bound' in locals() else None
-        })
-    
-    # Find forecast start point
+    # Find forecast start point - CORRECTED
     target_date = pd.Timestamp(f"{forecast_start_year}-{forecast_start_month:02d}-01")
-    closest_idx = (data['date'] - target_date).abs().idxmin()
-    start_seq_idx = max(0, closest_idx - seq_length)
+    
+    # Use the last available data for forecasting if target date is beyond data
+    if target_date > data['date'].max():
+        print(f"Warning: Target date {target_date} is beyond available data. Using last available data point.")
+        start_seq_idx = max(0, len(data) - seq_length)
+    else:
+        date_diffs = (data['date'] - target_date).abs()
+        closest_idx = date_diffs.idxmin()
+        start_seq_idx = max(0, closest_idx - seq_length + 1)
+    
     forecast_start_sequence = data_scaled[start_seq_idx:start_seq_idx+seq_length]
+    
+    print(f"Forecast starting from data point: {start_seq_idx}")
+    if start_seq_idx + seq_length - 1 < len(data):
+        print(f"Last date in sequence: {data.iloc[start_seq_idx + seq_length - 1]['date']}")
     
     # Forecast future
     def forecast_future(model, last_sequence, n_steps, scaler, feature_indices, data):
@@ -360,13 +411,11 @@ def run_precip_forecast_pipeline(prep_df, seq_length=48, forecast_start_year=201
         'scaler': scaler,  # Scaler for future predictions
         
         # Test evaluation results
-        'test_metrics': {
-            'rmse': test_rmse,
-            'mae': test_mae,
-            'r2': test_r2,
-            'ci_coverage': ci_coverage
-        },
+        'test_metrics': test_metrics,
         'test_predictions_df': test_predictions_df,
+        
+        # NEW: All predictions including recent data
+        'all_predictions_df': all_predictions_df,
         
         # Forecast results
         'forecast_df': forecast_df,
@@ -377,7 +426,6 @@ def run_precip_forecast_pipeline(prep_df, seq_length=48, forecast_start_year=201
         'final_train_loss': history.history['loss'][-1],
         'final_val_loss': history.history['val_loss'][-1]
     }
-
 
 def MilkProductionForecaster(data_numeric, features, unique_ward1="Shapefile_wardName", 
                                    target_var="amountmilked", seq_length=13, test_size=0.1, 
