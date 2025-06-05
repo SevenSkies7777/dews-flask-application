@@ -7,6 +7,7 @@ from Rainfall_data_extraction import RainfallDataProcessor
 from flask import request
 from Milk_Production_Forecasting_Main import process_milk_production_forecasts
 from Prediction_Residual_Plots import process_residual_plots
+from Grazing_Dist_Forecasting_Main import process_grazing_distance_forecasts
 
 app = Flask(__name__)
 
@@ -75,6 +76,8 @@ def process_milk_predictions():
 
       # Call the outlier processing function
       process_milk_production_forecasts(county_id)
+
+      #process_grazing_distance_forecasts(county_id)
 
       # Return a valid JSON response
       return jsonify(
