@@ -17,3 +17,4 @@ tqdm==4.65.0
 # ML & Deep Learning dependencies
 tensorflow==2.11.0
 scikit-learn==1.2.2
+statsmodels==0.13.5
