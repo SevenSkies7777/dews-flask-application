@@ -1,20 +1,18 @@
-
-
 import numpy as np
 import pandas as pd
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 from tensorflow.keras import backend as K
 from sqlalchemy import create_engine, text
-from Milk_Production_Forecast_Model import run_precip_forecast_pipeline
-from Milk_Production_Forecast_Model import MilkProductionForecaster
+from Grazing_Dist_Forecast_Model import run_precip_forecast_pipeline
+from Grazing_Dist_Forecast_Model import GrazingDistForecaster
 
 
 def process_milk_production_forecasts(county_id):
     # Create SQLAlchemy engine
     engine = create_engine(
-        # 'mysql+mysqlconnector://root:Romans17:48@127.0.0.1/livelihoodzones'
-        'mysql+mysqlconnector://root:*Database630803240081@127.0.0.1/livelihoodzones'    
+        'mysql+mysqlconnector://root:Romans17:48@127.0.0.1/livelihoodzones_5'
+        # 'mysql+mysqlconnector://root:*Database630803240081@127.0.0.1/livelihoodzones'    
     )
 
     query = """
@@ -80,8 +78,8 @@ def process_milk_production_forecasts(county_id):
     '''conn = mysql.connector.connect(
             host='127.0.0.1',
             user='root',
-            password='*Database630803240081',
-            database='livelihoodzones'
+            password='Romans17:48',
+            database='livelihoodzones_5'
         )
 
     cursor = conn.cursor()
@@ -119,15 +117,17 @@ def process_milk_production_forecasts(county_id):
         prep_df = prep_df0[prep_df0["WARD"] == WARD]
         prep_df = prep_df.reset_index()    
         prep_df=prep_df[['season','Season_Index','Month','WARD','T','precipitation','year','month_name','month_num']]
-        if prep_df.empty:
-            print(f"No precipitation data found for {WARD}. Skipping...")
-            continue         
+        MIN_REQUIRED_ROWS = 48  # seq_length + 1
+        if prep_df.shape[0] < MIN_REQUIRED_ROWS:    
+            # print(f"No precipitation data found for {WARD}. Skipping...")
+            print(f"Insufficient precipitation data for {WARD} (only {prep_df.shape[0]} rows). Skipping...")        
+            continue                       
         unique_ward = prep_df["WARD"].unique()
         #prep_df1=prep_df
         #prep_df['T'] = pd.to_datetime(prep_df['T'])
         #pd.to_datetime(prep_df0['T'], errors='coerce')
-        #cutoff_date = pd.to_datetime('2024-0-01')
-        #prep_df=prep_df[(prep_df['T'] < cutoff_date)]
+        # cutoff_date = pd.to_datetime('2025-03-01')
+        # prep_df=prep_df[(prep_df['T'] < cutoff_date)]
 
         # Call the precipitation forecasting function
         results = run_precip_forecast_pipeline(
@@ -239,6 +239,7 @@ def process_milk_production_forecasts(county_id):
         unique_ward2 = unique_ward[0]
         unique_ward1
 
+
             # db_df_clean1=db_df_clean.groupby(['Shapefile_wardName', 'month', 'year', 'season','Season_Index','Bad_year','Good_year'])[['amountmilked']].mean().reset_index()
         db_df_clean1=db_df_clean.groupby(['Shapefile_wardName', 'month', 'year', 'season','Season_Index','Bad_year','Good_year'])[['amountmilked','GrazingDist']].mean().reset_index()
 
@@ -246,11 +247,18 @@ def process_milk_production_forecasts(county_id):
 
         joined_data3=joined_data2[(joined_data2['Shapefile_wardName']==unique_ward1)&(joined_data2['year']>2016)]
 
+        MIN_REQUIRED_ROWS = 14  # seq_length + 1
+
+        if joined_data3.shape[0] < MIN_REQUIRED_ROWS:
+            print(f"Insufficient data for {WARD} (only {joined_data3.shape[0]} rows). Skipping...")
+            continue     
+
         data_numeric = joined_data3.assign(**{col: joined_data3[col].map(lambda x: x.toordinal()) 
                                             for col in joined_data3.select_dtypes(include=['datetime64'])})
         
 
         data_numeric = data_numeric.sort_values(by="T")
+
         print(data_numeric.head())
 
         # features = ["year", "month_num", "Season_Index", "precipitation", 
@@ -278,11 +286,12 @@ def process_milk_production_forecasts(county_id):
 
         else:
 
-            results = MilkProductionForecaster(
+            results = GrazingDistForecaster(
                 data_numeric.copy(),
                 features=features,
                 n_future=16,
-                external_precip_forecasts=precipitation_forecasts_df
+                external_precip_forecasts=precipitation_forecasts_df#,
+                # enhancement_method='enhanced_original'
             )
             # Access the results
 
@@ -290,11 +299,11 @@ def process_milk_production_forecasts(county_id):
             test_results = results["test_results"]
             evaluation_metrics = results["evaluation_metrics"]
 
-            print(results['forecast_results'][['Ward', 'Month', 'Year', 'Forecasted Amount Milked']].head())
-            forecast_df.rename(columns={'Months Gap': 'Months_Gap','Forecasted Amount Milked': 'Forecasted_Value','Actual (if available)': 'Actual','Forecast Uncertainty (Std Dev)': 'Forecast_Uncertainty','Lower Bound (95%)': 'Lower_Bound','Upper Bound (95%)': 'Upper_Bound','Percent Error': 'Percent_Error'}, inplace=True)
+            print(results['forecast_results'][['Ward', 'Month', 'Year', 'Forecasted GrazingDist']].head())
+            forecast_df.rename(columns={'Months Gap': 'Months_Gap','Forecasted GrazingDist': 'Forecasted_Value','Actual (if available)': 'Actual','Forecast Uncertainty (Std Dev)': 'Forecast_Uncertainty','Lower Bound (95%)': 'Lower_Bound','Upper Bound (95%)': 'Upper_Bound','Percent Error': 'Percent_Error'}, inplace=True)
             forecast_df5=forecast_df[['Month','Year','Season_Index','Precipitation','Months_Gap','Date','Date_Object','Forecasted_Value','Actual','Forecast_Uncertainty','Lower_Bound','Upper_Bound','Error','Percent_Error','Last_Actual_Value','Month1_Forecast','Month2_Forecast','Month3_Forecast','Evaluation_Metrics']]
             forecast_df5['Ward']=unique_ward2
-            forecast_df5['Indicator']="TotalDailyQntyMilkedInLtrs"
+            forecast_df5['Indicator']="DistInKmsToWaterSourceFromGrazingArea"
             forecast_df5=forecast_df5[['Ward','Month','Year','Season_Index','Precipitation','Months_Gap','Date','Date_Object','Indicator','Forecasted_Value','Actual','Forecast_Uncertainty','Lower_Bound','Upper_Bound','Error','Percent_Error','Last_Actual_Value','Month1_Forecast','Month2_Forecast','Month3_Forecast','Evaluation_Metrics']]
             forecast_df5
 
@@ -348,7 +357,6 @@ def process_milk_production_forecasts(county_id):
                 year = row['Year']
                 indicator = row['Indicator']
                 row_key = (ward, month, year, indicator)
-                row_key = (ward, month, year)
                 is_special = row['Last_Actual_Value'] is not None
 
                 if is_special and row_key not in existing_special_rows:
@@ -358,7 +366,7 @@ def process_milk_production_forecasts(county_id):
                             WHERE Ward = :ward AND Month = :month AND Year = :year AND Indicator = :indicator
                         """)
                         with engine.begin() as conn:
-                            conn.execute(delete_query, {"ward": ward, "month": month, "year": year})
+                            conn.execute(delete_query, {"ward": ward, "month": month, "year": year, "indicator": indicator})
                         print(f"Cleared existing rows for new special row {row_key}")
                     except Exception as e:
                         print(f"Error clearing rows for new special row {row_key}: {e}")
@@ -373,7 +381,7 @@ def process_milk_production_forecasts(county_id):
                             WHERE Ward = :ward AND Month = :month AND Year = :year AND Indicator = :indicator
                         """)
                         with engine.begin() as conn:
-                            conn.execute(delete_query, {"ward": ward, "month": month, "year": year})
+                            conn.execute(delete_query, {"ward": ward, "month": month, "year": year, "indicator": indicator})
                     except Exception as e:
                         print(f"Error clearing rows for non-special row {row_key}: {e}")
 
@@ -387,7 +395,7 @@ def process_milk_production_forecasts(county_id):
                             WHERE Ward = :ward AND Month = :month AND Year = :year AND Indicator = :indicator
                         """)
                         with engine.begin() as conn:
-                            conn.execute(delete_query, {"ward": ward, "month": month, "year": year})
+                            conn.execute(delete_query, {"ward": ward, "month": month, "year": year, "indicator": indicator})
                         print(f"Deleted existing special row {row_key} for update")
                     except Exception as e:
                         print(f"Error deleting existing special row {row_key} for update: {e}")

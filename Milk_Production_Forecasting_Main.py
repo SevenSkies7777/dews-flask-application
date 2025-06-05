@@ -13,8 +13,8 @@ from Milk_Production_Forecast_Model import MilkProductionForecaster
 def process_milk_production_forecasts(county_id):
     # Create SQLAlchemy engine
     engine = create_engine(
-        # 'mysql+mysqlconnector://root:Romans17:48@127.0.0.1/livelihoodzones'
-         'mysql+mysqlconnector://root:*Database630803240081@127.0.0.1/livelihoodzones'    
+        'mysql+mysqlconnector://root:Romans17:48@127.0.0.1/livelihoodzones_5'
+        #  'mysql+mysqlconnector://root:*Database630803240081@127.0.0.1/livelihoodzones'    
     )
 
     query = """
@@ -119,9 +119,11 @@ def process_milk_production_forecasts(county_id):
         prep_df = prep_df0[prep_df0["WARD"] == WARD]
         prep_df = prep_df.reset_index()    
         prep_df=prep_df[['season','Season_Index','Month','WARD','T','precipitation','year','month_name','month_num']]
-        if prep_df.empty:
-            print(f"No precipitation data found for {WARD}. Skipping...")
-            continue                
+        MIN_REQUIRED_ROWS = 48  # seq_length + 1
+        if prep_df.shape[0] < MIN_REQUIRED_ROWS:    
+            # print(f"No precipitation data found for {WARD}. Skipping...")
+            print(f"Insufficient precipitation data for {WARD} (only {prep_df.shape[0]} rows). Skipping...")        
+            continue                      
         unique_ward = prep_df["WARD"].unique()
         #prep_df1=prep_df
         #prep_df['T'] = pd.to_datetime(prep_df['T'])
@@ -244,6 +246,12 @@ def process_milk_production_forecasts(county_id):
         joined_data2 = db_df_clean1.merge(prep_df2, left_on=['Shapefile_wardName', 'year', 'month'], right_on=['WARD', 'year', 'month_name'], how='right')
 
         joined_data3=joined_data2[(joined_data2['Shapefile_wardName']==unique_ward1)&(joined_data2['year']>2016)]
+
+        MIN_REQUIRED_ROWS = 14  # seq_length + 1
+
+        if joined_data3.shape[0] < MIN_REQUIRED_ROWS:
+            print(f"Insufficient data for {WARD} (only {joined_data3.shape[0]} rows). Skipping...")
+            continue             
 
         data_numeric = joined_data3.assign(**{col: joined_data3[col].map(lambda x: x.toordinal()) 
                                             for col in joined_data3.select_dtypes(include=['datetime64'])})
