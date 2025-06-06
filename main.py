@@ -77,7 +77,11 @@ def process_milk_predictions():
       # Call the outlier processing function
       process_milk_production_forecasts(county_id)
 
-      #process_grazing_distance_forecasts(county_id)
+      process_grazing_distance_forecasts(county_id)
+
+      process_residual_plots(county_id, "TotalDailyQntyMilkedInLtrs")
+
+      process_residual_plots(county_id, "DistInKmsToWaterSourceFromGrazingArea")
 
       # Return a valid JSON response
       return jsonify(
@@ -104,4 +108,4 @@ def process_residual_plots_api():
 
 
 if __name__ == "__main__":
-  app.run(debug=False, host="0.0.0.0", port=6060)
+  app.run(debug=False, threaded=True, host="0.0.0.0", port=6060)

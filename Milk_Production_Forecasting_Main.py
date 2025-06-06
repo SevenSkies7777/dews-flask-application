@@ -13,7 +13,7 @@ from Milk_Production_Forecast_Model import MilkProductionForecaster
 def process_milk_production_forecasts(county_id):
     # Create SQLAlchemy engine
     engine = create_engine(
-        'mysql+mysqlconnector://root:Romans17:48@127.0.0.1/livelihoodzones_5'
+        'mysql+mysqlconnector://root:*Database630803240081@127.0.0.1/livelihoodzones'
         #  'mysql+mysqlconnector://root:*Database630803240081@127.0.0.1/livelihoodzones'    
     )
 
