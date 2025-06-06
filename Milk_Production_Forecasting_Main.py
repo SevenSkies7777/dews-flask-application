@@ -13,7 +13,7 @@ from Milk_Production_Forecast_Model import MilkProductionForecaster
 def process_milk_production_forecasts(county_id):
     # Create SQLAlchemy engine
     engine = create_engine(
-        'mysql+mysqlconnector://root:*Database630803240081@127.0.0.1/livelihoodzones'
+        'mysql+mysqlconnector://root:Romans17:48@127.0.0.1/livelihoodzones_5'
         #  'mysql+mysqlconnector://root:*Database630803240081@127.0.0.1/livelihoodzones'    
     )
 
@@ -128,7 +128,7 @@ def process_milk_production_forecasts(county_id):
         #prep_df1=prep_df
         #prep_df['T'] = pd.to_datetime(prep_df['T'])
         #pd.to_datetime(prep_df0['T'], errors='coerce')
-        #cutoff_date = pd.to_datetime('2024-0-01')
+        #cutoff_date = pd.to_datetime('2024-01-01')
         #prep_df=prep_df[(prep_df['T'] < cutoff_date)]
 
         # Call the precipitation forecasting function
@@ -136,8 +136,7 @@ def process_milk_production_forecasts(county_id):
             prep_df=prep_df,
             seq_length=48,
             forecast_start_year=2016,
-            forecast_start_month=1,
-            n_future=109
+            forecast_start_month=1
         )
 
         # Access the results
