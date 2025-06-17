@@ -11,8 +11,8 @@ from Grazing_Dist_Forecast_Model import GrazingDistForecaster
 def process_grazing_distance_forecasts(county_id):
     # Create SQLAlchemy engine
     engine = create_engine(
-        'mysql+mysqlconnector://root:*Database630803240081@127.0.0.1/livelihoodzones'
-        # 'mysql+mysqlconnector://root:*Database630803240081@127.0.0.1/livelihoodzones'    
+        # 'mysql+mysqlconnector://root:Romans17:48@127.0.0.1/livelihoodzones'
+        'mysql+mysqlconnector://root:*Database630803240081@127.0.0.1/livelihoodzones'    
     )
 
     query = """
@@ -75,15 +75,10 @@ def process_grazing_distance_forecasts(county_id):
     #conn.close()
     #db_df
 
-    '''conn = mysql.connector.connect(
-            host='127.0.0.1',
-            user='root',
-            password='Romans17:48',
-            database='livelihoodzones_5'
-        )
-
-    cursor = conn.cursor()
-    '''
+    engine2 = create_engine(
+        # 'mysql+mysqlconnector://root:Romans17:48@127.0.0.1/dews_machine_learning'
+        'mysql+mysqlconnector://root:*Database630803240081@127.0.0.1/dews_machine_learning'    
+    )
 
     query = """
         SELECT *
@@ -92,7 +87,7 @@ def process_grazing_distance_forecasts(county_id):
         """
 
     #precipitation_df = pd.read_sql(query, conn)
-    precipitation_df = pd.read_sql(query, engine, params=(county_id,))
+    precipitation_df = pd.read_sql(query, engine2, params=(county_id,))
 
 
 
