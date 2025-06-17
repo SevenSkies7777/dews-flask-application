@@ -26,7 +26,7 @@ def process_rainfall_data():
         db_user="root",
         db_password="*Database630803240081",
         db_host="127.0.0.1",
-        db_name="livelihoodzones"
+        db_name="dews_machine_learning"
     )
 
     # Define file paths relative to the project root
