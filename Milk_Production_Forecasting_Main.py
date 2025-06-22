@@ -55,17 +55,12 @@ def process_milk_production_forecasts(county_id):
     SELECT 
         Seasons.season,
         Seasons.Season_Index,
-        Seasons.Month,
-        DATE_FORMAT(STR_TO_DATE(CONCAT(LEFT(LTAs.Month, 3), ' 1 2000'), '%b %d %Y'), '%M') AS LTAMonth,
-        LTAs.Bad_year,
-        LTAs.Good_year
+        Seasons.Month
     FROM Seasons
-    LEFT JOIN LTAs ON (Seasons.month = DATE_FORMAT(STR_TO_DATE(CONCAT(LEFT(LTAs.Month, 3), ' 1 2000'), '%b %d %Y'), '%M'))
-    WHERE (LTAs.CountyId = %s AND LTAs.Indicator='Milk Production')
     """
 
     #Seasons = pd.read_sql(query, conn)
-    Seasons = pd.read_sql(query, engine, params=(county_id,))
+    Seasons = pd.read_sql(query, engine,)
 
 
     db_df3['year'] = db_df3['ExerciseStartDate'].dt.year
