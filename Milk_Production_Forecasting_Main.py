@@ -13,8 +13,8 @@ from Milk_Production_Forecast_Model import MilkProductionForecaster
 def process_milk_production_forecasts(county_id):
     # Create SQLAlchemy engine
     engine = create_engine(
-        # 'mysql+mysqlconnector://root:Romans17:48@127.0.0.1/livelihoodzones'
-        'mysql+mysqlconnector://root:*Database630803240081@127.0.0.1/livelihoodzones'    
+        'mysql+mysqlconnector://root:Romans17:48@127.0.0.1/livelihoodzones'
+        # 'mysql+mysqlconnector://root:*Database630803240081@127.0.0.1/livelihoodzones'    
     )
 
     query = """
@@ -73,8 +73,8 @@ def process_milk_production_forecasts(county_id):
     #db_df
 
     engine2 = create_engine(
-        # 'mysql+mysqlconnector://root:Romans17:48@127.0.0.1/dews_machine_learning'
-        'mysql+mysqlconnector://root:*Database630803240081@127.0.0.1/dews_machine_learning'    
+        'mysql+mysqlconnector://root:Romans17:48@127.0.0.1/dews_machine_learning'
+        # 'mysql+mysqlconnector://root:*Database630803240081@127.0.0.1/dews_machine_learning'    
     )
 
     query = """
@@ -147,7 +147,7 @@ def process_milk_production_forecasts(county_id):
         prep_df1 = forecast_df1.merge(prep_df, left_on=['Month','Year','Date_Object'], right_on=['month_num','year','T'], how='right')
         prep_df2=prep_df1[['year','Forecasted Precipitation','WARD','T','precipitation','month_name','month_num']]
         precipitation_forecasts_df=prep_df2
-        db_df=db_df[['WardId','HouseHoldId','Shapefile_wardName', 'month', 'year', 'season','Season_Index','amountmilked','Bad_year','Good_year']]
+        db_df=db_df[['WardId','HouseHoldId','Shapefile_wardName', 'month', 'year', 'season','Season_Index','amountmilked']]
 
 
         #Cleaning data (Outliers)
@@ -230,7 +230,7 @@ def process_milk_production_forecasts(county_id):
         unique_ward2 = unique_ward[0]
         unique_ward1
 
-        db_df_clean1=db_df_clean.groupby(['Shapefile_wardName', 'month', 'year', 'season','Season_Index','Bad_year','Good_year'])[['amountmilked']].mean().reset_index()
+        db_df_clean1=db_df_clean.groupby(['Shapefile_wardName', 'month', 'year', 'season','Season_Index'])[['amountmilked']].mean().reset_index()
 
         joined_data2 = db_df_clean1.merge(prep_df2, left_on=['Shapefile_wardName', 'year', 'month'], right_on=['WARD', 'year', 'month_name'], how='right')
 
