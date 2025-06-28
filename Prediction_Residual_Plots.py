@@ -9,7 +9,8 @@ import os
 
 # Create SQLAlchemy engine
 engine = create_engine(
-    'mysql+mysqlconnector://root:*Database630803240081@127.0.0.1/livelihoodzones'
+    'mysql+mysqlconnector://root:*Database630803240081@127.0.0.1/livelihoodzones',
+pool_recycle=28000, pool_pre_ping=True
 )
 
 

@@ -87,7 +87,9 @@ def process_milk_predictions():
       return jsonify(
           {"message": "Milk predictions processing completed successfully"}), 200
 
+
     except Exception as e:
+      print(traceback.format_exc())  # Log full stack trace
       return jsonify({"error": str(e)}), 500
 
 @app.route("/service-api/v1/predictions/process/residual-plots",
