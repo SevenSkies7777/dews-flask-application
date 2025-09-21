@@ -1,19 +1,19 @@
 NDMA_data/
 NDMA_2024_data/
-__pycache__/
+
 trial
 lbsall.geojson
 lngaxt.geojson
 mbuqam.geojson
 figures/
-client_secrets.json
+
 3_Ward_Level_Dataset/ward_level_dataset_generation_class_object
 3_Ward_Level_Dataset/ward_level_class_object_v2
-results/
+
 ward_summary.csv
 data_quality_checks
-_archive
-plots
-covariates_graphs
+
+
+
 intermediary_datasets copy 2
-intermediary_datasets
+
