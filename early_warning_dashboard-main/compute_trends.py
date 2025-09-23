@@ -174,7 +174,7 @@ def run_trend_pipeline_for_target(
             ax.set_title(f"Observed {target_name} in Wards That Triggered Alerts (3mo rule)", fontsize=14)
             ax.set_ylabel(target_name); ax.set_xlabel("Time")
             ax.legend(loc='upper left', bbox_to_anchor=(1, 1))
-            plt.tight_layout(); plt.show()
+#            plt.tight_layout(); plt.show()
 
     # -------- Wide format (keep it simple & correct) --------
     # 1) Pivot horizon-specific fields

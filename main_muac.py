@@ -119,7 +119,7 @@ def find_latest_complete_dataset():
         raise FileNotFoundError(f"No complete dataset files found matching pattern: {pattern}")
     return max(dataset_files, key=os.path.getmtime)
 
-def main():
+def run_muac_pipelines():
     print("=== Kenya MUAC Analysis Pipeline ===")
     
     # Step 1: Process raw data
@@ -217,5 +217,5 @@ def main():
     
     print("\n✓ Pipeline completed successfully!")
 
-if __name__ == "__main__":
-    main()
+#if __name__ == "__main__":
+#    run_muac_pipelines()

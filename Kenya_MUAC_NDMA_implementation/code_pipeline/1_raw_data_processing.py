@@ -127,7 +127,8 @@ wards = gpd.read_file(os.path.join(SHAPE, 'Kenya_wards_NDMA.shp'))
 
 wards.plot(color='lightblue', edgecolor='black')
 plt.title("Kenya Wards")
-plt.show()
+#plt.show()
+#plt.close()
 
 
 common_values = muac['Ward'].isin(wards['Ward'])
@@ -202,7 +203,8 @@ for idx, row in valid_counties.iterrows():
 ax.legend(loc="upper left")
 ax.set_axis_off()
 plt.tight_layout()
-plt.show()
+#plt.show()
+#plt.close()
 #-------------------------------------------
 #-------------------------------------------
 
@@ -290,7 +292,7 @@ fig.savefig(
     bbox_inches='tight',
     facecolor='white'
 )
-plt.show()
+#plt.show()
 
 
 #--------------------------------------
@@ -422,7 +424,7 @@ fig.savefig(
     facecolor='white'
 )
 
-plt.show()
+#plt.show()
 
 #---------------------------------
 #=================================================================
@@ -503,7 +505,7 @@ fig.savefig(
     facecolor='white'
 )
 
-plt.show()
+#plt.show()
 #-----------------------------------------------------
 #---------------------------------
 # Generating wasting prevalence 

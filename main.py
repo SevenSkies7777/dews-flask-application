@@ -8,6 +8,8 @@ from flask import request
 from Milk_Production_Forecasting_Main import process_milk_production_forecasts
 from Prediction_Residual_Plots import process_residual_plots
 from Grazing_Dist_Forecasting_Main import process_grazing_distance_forecasts
+from Main_dash import start_muac_dashboard
+from main_muac import run_muac_pipelines
 
 app = Flask(__name__)
 
@@ -108,6 +110,27 @@ def process_residual_plots_api():
     except Exception as e:
       return jsonify({"error": str(e)}), 500
 
+@app.route("/service-api/v1/muac/process/modeling", methods=["GET", "POST"])
+def api_run_muac_pipelines():
+    try:
+        # Call function
+        run_muac_pipelines()
+        
+        return jsonify({"message": "MUAC data processing and modeling initiated successfully."}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/service-api/v1/muac/process/dashboard", methods=["GET", "POST"])
+def api_start_muac_dashboard():
+    try:
+        # Call function
+        start_muac_dashboard()
+        
+        return jsonify({"message": "MUAC dashboard initiated. access dashboard at http://localhost:8080"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
   app.run(debug=False, threaded=True, host="0.0.0.0", port=6060)

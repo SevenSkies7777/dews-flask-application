@@ -1651,7 +1651,7 @@ def main():
         # Visualization
         polygons.plot(color='lightblue', edgecolor='black')
         plt.title(f"{args.polygon_id} in dataset")
-        plt.show()
+#        plt.show()
 
         # Change directory
         os.chdir(PARENT_DIR) #Change to relevant directory

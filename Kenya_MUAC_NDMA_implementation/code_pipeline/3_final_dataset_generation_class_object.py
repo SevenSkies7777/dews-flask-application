@@ -143,7 +143,8 @@ class WastingPrevalenceDatasetBuilder:
 
             plt.title("Wards After Minimum Observations Filtering")
             plt.tight_layout()
-            plt.show()
+#            plt.show()
+#            plt.close()
 
         
         
@@ -301,8 +302,8 @@ class WastingPrevalenceDatasetBuilder:
                     plt.savefig(file_path)
                     print(f"Saved: {file_path}")
                 if plot:
-                    plt.show()
-                plt.close()
+#                    plt.show()
+#                plt.close()
 
         # === 2. Plot average wasting prevalence (all vs filtered)
         avg_all = (
@@ -329,8 +330,8 @@ class WastingPrevalenceDatasetBuilder:
             plt.savefig(path)
             print(f"Saved: {path}")
         if plot:
-            plt.show()
-        plt.close()
+#            plt.show()
+#        plt.close()
 
         # === 3. Map of eliminated vs remaining wards
         missing = self.wards_shapefile[self.wards_shapefile['Ward'].isin(
@@ -353,8 +354,8 @@ class WastingPrevalenceDatasetBuilder:
             plt.savefig(path)
             print(f"Saved: {path}")
         if plot:
-            plt.show()
-        plt.close()
+#            plt.show()
+#        plt.close()
 
 
     def merge_travel_time(self, generate_plot=True, save_plot=True, plot=True, 
@@ -396,8 +397,8 @@ class WastingPrevalenceDatasetBuilder:
             plt.savefig(path)
             print(f"Saved: {path}")
         if plot:
-            plt.show()
-        plt.close()
+#            plt.show()
+#        plt.close()
 
 
     def merge_population_density(self, generate_plot=True, save_plot=True, plot=True, 
@@ -444,8 +445,8 @@ class WastingPrevalenceDatasetBuilder:
             plt.savefig(path)
             print(f"Saved: {path}")
         if plot:
-            plt.show()
-        plt.close()
+#            plt.show()
+#        plt.close()
 
 
 
@@ -598,8 +599,8 @@ class WastingPrevalenceDatasetBuilder:
             plt.savefig(path)
             print(f"Saved: {path}")
         if plot:
-            plt.show()
-        plt.close()
+#            plt.show()
+#        plt.close()
 
 
 
@@ -755,8 +756,8 @@ class WastingPrevalenceDatasetBuilder:
             plt.savefig(path)
             print(f"📈 Saved: {path}")
         if plot:
-            plt.show()
-        plt.close()
+#            plt.show()
+#        plt.close()
 
 
     def merge_ndvi_evi_data(self, 
@@ -898,8 +899,8 @@ class WastingPrevalenceDatasetBuilder:
             plt.savefig(path)
             print(f"📈 Saved: {path}")
         if plot:
-            plt.show()
-        plt.close()
+#            plt.show()
+#        plt.close()
 
     
     def merge_ndvi_evi_by_land_use(self,
@@ -1051,8 +1052,8 @@ class WastingPrevalenceDatasetBuilder:
             plt.savefig(path)
             print(f"📈 Saved: {path}")
         if plot:
-            plt.show()
-        plt.close()
+#            plt.show()
+#        plt.close()
 
     def merge_land_use_data(self, 
                             main_file="land_use_pct_stats_2007_01_to_2010_12.pkl",
@@ -1191,8 +1192,8 @@ class WastingPrevalenceDatasetBuilder:
                 plt.savefig(path)
                 print(f"Saved: {path}")
             if plot:
-                plt.show()
-            plt.close()
+#                plt.show()
+#            plt.close()
 
 
     def merge_conflict_data(self,
@@ -1405,8 +1406,8 @@ class WastingPrevalenceDatasetBuilder:
             plt.savefig(path)
             print(f"📈 Saved: {path}")
         if plot:
-            plt.show()
-        plt.close()
+#            plt.show()
+#        plt.close()
 
 
     def extend_future_muac_periods(self, months_forward=3):
@@ -1708,7 +1709,7 @@ class WastingPrevalenceDatasetBuilder:
                 print(f"Plot saved to: {file_path}")
                 plt.close()
             else:
-                plt.show()
+#                plt.show()
 
 
 

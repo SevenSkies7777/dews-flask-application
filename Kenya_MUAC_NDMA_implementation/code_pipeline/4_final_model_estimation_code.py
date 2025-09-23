@@ -811,5 +811,5 @@ for outcome_var in OUTCOMES:
     fig.savefig(out_png, dpi=300, bbox_inches="tight")
     print(f"[{outcome_var}] Saved:", out_png)
 
-    plt.show()
-    plt.close(fig)
+#    plt.show()
+#    plt.close(fig)

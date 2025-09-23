@@ -126,7 +126,7 @@ def start_dashboard():
         print("❌ Failed to start dashboard")
         return False
 
-def run_full_pipeline():
+def start_muac_dashboard():
     """Run the complete pipeline"""
     print("🚀 Starting NDMA DEWS Dashboard Pipeline...")
     print(f"📁 Base directory: {BASE_DIR}")
@@ -150,4 +150,4 @@ def run_full_pipeline():
         print("✅ Dashboard stopped successfully!")
 
 if __name__ == "__main__":
-    run_full_pipeline()
+    start_muac_dashboard()
