@@ -76,7 +76,7 @@ pool_recycle=28000, pool_pre_ping=True
             for i in range(len(outlier_run_names)):
                 del_query = text("""
                     DELETE FROM outlier_runs 
-                    WHERE OutlierRunName = :run_name AND DataCollectionExerciseId = :exercise_id
+                    WHERE OutlierRunName = :run_name AND DataCollectionExerciseId = :exercise_id AND Indicator = 
                 """)
                 
                 try:
